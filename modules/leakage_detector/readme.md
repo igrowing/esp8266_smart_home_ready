@@ -6,3 +6,9 @@ When flood is detected the alert is sent to home owner email. Optionally MQTT to
 
 It works on 2xCR2032 batteries, which should be enough for 2 years in this design.
 When the battery goes critical low, an appropriate message sent to home owner's email and to MQTT.
+
+The detector can be used as:
+- Window break detector (add vibration sensor), or 
+- Door opening alerter (add vibration of reed + larger battery), or
+- PIR movement detector (add PIR + larger battery), or
+- anything else :) Dream big.
