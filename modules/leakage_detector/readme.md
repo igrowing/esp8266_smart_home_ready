@@ -12,3 +12,7 @@ The detector can be used as:
 - Door opening alerter (add vibration of reed + larger battery), or
 - PIR movement detector (add PIR + larger battery), or
 - anything else :) Dream big.
+
+Future TODOs:
+- HW: Add capacitive sensor to measure amount of water: this is to avoid false alarm from occasional drop or from wet floor.
+- SW: Add nice user activation/reactivation interface.
