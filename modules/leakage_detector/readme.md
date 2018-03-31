@@ -21,7 +21,7 @@ The firmware is based on ESPEasy: that's generic enough and not required special
 
 1. Load 2.0 working FW to ESP (v2.0-20180304b - good one).
 2. Initialize ESP (Wifi + Pass).
-3. Configure required module settings: NTP + timezone, Globalsync enabled + port + unique number, MQTT collector, etc. Save the config.
+3. Load configration: Tools -> Flash -> Upload -> choose config.dat. Adapt required module settings: NTP + timezone, Globalsync enabled + port + unique number, MQTT collector, etc. Save the config.
 4. Load rules: Tools -> Flash -> Upload -> choose rules1.dat.
 5. Configure both notifications: 1st for leakage alert, 2nd for Low battery alert. I use SMTP2GO.
 6. Tools -> Reboot.
