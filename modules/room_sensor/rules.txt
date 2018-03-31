@@ -1,0 +1,75 @@
+On Clock#Time=All,22:30 do
+  if [glob#enabled]=1
+    if [glob#rs]=0
+      if [Env#Temperature]<17
+        publish,shm/%sysname%/timerset,%systime%+30min
+        timerset,1,1800
+        event,toggle=1 // fire the event
+        gpio,13,0 // LED on
+      endif
+    endif
+  endif
+endon
+On Clock#Time=All,22:45 do
+  if [glob#enabled]=1
+    if [glob#rs]=0
+      if [Env#Temperature]<23
+        publish,shm/%sysname%/timerset,%systime%+15min
+        timerset,1,900
+        event,toggle=1 // fire the event
+        gpio,13,0 // LED on
+      endif
+    endif
+  endif
+endon
+
+On btn#Switch=0 Do timerSet,4,0.5 endon
+on rules#timer=4 do
+ if [btn#Switch]=1 // Active low - short press - toggle
+  publish,shm/%sysname%/button,click
+ else //long press - on 15 min
+  publish,shm/%sysname%/button,longclick
+  publish,shm/%sysname%/timerset,%systime%
+  timerset,1,900
+  gpio,13,0 // LED on
+ endif
+ If [glob#rs]=0  // Set Global variable Relay Status
+  event,toggle=1
+ Else
+  event,toggle=0
+ EndIf
+endon
+
+On toggle=0 Do  // Turn OFF
+ gpio,12,0
+ publish,shm/%sysname%/relay,%eventvalue%
+ taskvalueset,6,1,0 // Keep relate state
+ gpio,13,1 // LED off
+EndOn
+On toggle=1 Do  // Turn ON
+ gpio,12,1
+ publish,shm/%sysname%/relay,%eventvalue%
+ taskvalueset,6,1,1 // Keep relate state
+EndOn
+On Rules#Timer=1 do
+ event,toggle=0
+ publish,shm/%sysname%/timerend,%systime%
+ gpio,13,1 // LED off
+endon
+On Rules#Timer=3 do
+ publish,shm/%sysname%/ip,%ip%
+ timerSet,3,3600
+endon
+
+On System#Boot do    //When the ESP boots, do
+ publish,shm/%sysname%/ip,%ip%
+ publish,shm/%sysname%/mac,%mac%
+ timerSet,2,5
+ timerSet,3,3600
+ taskvalueset,6,2,1 // Enable glob automation
+endon
+On Rules#Timer=2 do  
+ publish,shm/%sysname%/boot,%sysyear%-%sysmonth%-%sysday%_%systime%
+ gpio,13,1 // LED off
+ event,toggle=0
+endon
