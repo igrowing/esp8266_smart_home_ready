@@ -1,0 +1,39 @@
+// Keep power on
+on System#Wake do GPIO,12,1 endon
+
+on System#Boot do 
+// Wait to network on.
+ timerSet,1,5
+endon
+
+On Rules#Timer=1 do
+ publish,shm/%sysname%/ip,%ip%
+ publish,shm/%sysname%/mac,%mac%
+ if [LowBat#State]=1
+  event LowBattery
+ else
+  event Leakage
+ endif
+endon
+
+on LowBattery do
+ publish,shm/%sysname%/status,LowBattery
+ notify 2
+ if [dbg#act_low]=0
+  publish,shm/%sysname%/status,dbg_mode_skip_deepsleep
+ else
+  publish,shm/%sysname%/status,deepsleep
+  deepsleep
+ endif
+endon
+
+on Leakage do
+  publish,shm/%sysname%/alert,Leakage
+  notify 1
+  if [dbg#act_low]=0
+   publish,shm/%sysname%/status,dbg_mode_skip_poweroff
+  else
+   publish,shm/%sysname%/status,poweroff
+   GPIO,12,0
+  endif
+endon
