@@ -1,4 +1,5 @@
 == Description ==
+
 The garden sensor is used for gathering data from garden about:
 - Soil moisture,
 - Soil pH,
@@ -12,6 +13,7 @@ Once data sent, the sensor shut itself down and triggers the timer again.
 
 
 == Instructions ==
+
 1. Load R147 working FW to ESP (WROOM2 has 512MB of flash => ESPEasy_R147_512.bin - good one).
 2. Initialize ESP (Wifi + Pass).
 3. Connect to it from broser and load settings:
@@ -26,6 +28,7 @@ Disconnect/remove jumper of GPIO16, this prevents deepsleep and poweroff.
 
 
 == Implementation explained ==
+
 Based on ESP8266 (ESP13, WROOM2). Any other ESP module is OK too except ESP-01.
 As firmware, Esp-easy is used (due to my laziness). Since new Esp-easy mega is not pre-built for 512MB flash, the old release R147 is used. Good enough.
 
