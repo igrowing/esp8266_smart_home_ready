@@ -20,6 +20,8 @@ Sensors used:
 - SI7021 - temperature/humidity sensor (I2C),
 - More sensors to be added (GPIO16).
 
+SI7021 to be replaced with BME680: it provides barometric pressure and VOC air pollution in addition to temperature and humidity.
+
 = Instructions =
 
 1. Load ESPeasy R147 or 2.0 working FW to ESP (v2.0-20180304b - good one).
