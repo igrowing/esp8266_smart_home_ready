@@ -1,0 +1,23 @@
+On System#Boot do    //When the ESP boots, do
+ timerSet,2,40  // Let ESP to complete boot tasks. It can't do that faster :(
+endon
+// Split sending MQTT messages to batches: ESP fails to send all at once.
+On Rules#Timer=2 do
+ publish,shm/%sysname%/adc/volt,[adc#volt]
+ publish,shm/%sysname%/vsolar/volt,[vsolar#volt]
+ timerSet,3,1  // Let time to finish transmit
+endon  
+On Rules#Timer=3 do
+ publish,shm/%sysname%/vbat/volt,[vbat#volt]
+ publish,shm/%sysname%/moist/percent,[moist#percent]
+ publish,shm/%sysname%/ph/unit,[ph#unit]
+ timerSet,4,1  // Let time to finish transmit
+endon  
+On Rules#Timer=4 do
+ publish,shm/%sysname%/env/humidity,[env#humidity]
+ publish,shm/%sysname%/env/temperature,[env#temperature]
+ timerSet,1,1  // Let time to finish transmit
+endon  
+On Rules#Timer=1 do  
+ gpio,16,0 // shut off
+endon
