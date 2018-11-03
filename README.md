@@ -1,5 +1,12 @@
 # ESP8266 based Smart Home System
 
+Spanish proverb says: "Wise man changes his mind, a fool never".
+We admit that struggling over the same problems as other developers is not effective way for progress.
+Therefore we picked 2 the most usable frameworks (EspEasy and Homie) to implement ESP8266 based part of the smart home.
+
+This impacts a little the fully autonomour OTA idea.
+However, this allows us to move faster to end-to-end solution.
+
 ## The goal
 Make fully automated OTA for ESP8266 under NodeMCU.
 
