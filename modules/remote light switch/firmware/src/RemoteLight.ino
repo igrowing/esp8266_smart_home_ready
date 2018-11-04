@@ -5,6 +5,7 @@
 #define PIN_RELAY   14
 #define PIN_BUTTON  0
 #define CLEARED     -10
+const String PREFIX = "/state";
 
 // Get status by index: request * 1 + v_sense * 2 + c_sence * 4
 String sw_statuses[] = { // r(elay)on/off _ v(oltage)yes/no _ c(urrent)yes/no 
@@ -21,13 +22,17 @@ volatile int lastStatus = CLEARED;
 
 HomieNode lightNode("light", "switch");
 // Bounce debouncer = Bounce(); // Bounce is built into Homie, so you can use it without including it first
+volatile uint32_t lastFileIndex = 0;
 volatile int lastBtnValue = CLEARED;
 volatile bool relayState;
 volatile byte vSenseIntCnt = 0;
 volatile byte cSenseIntCnt = 0;
 Ticker interruptHolder;
 Ticker statusTimer;
+Ticker writeTimer;
+Ticker expTimer;
 volatile bool isInterruptEnabled = false;
+volatile ulong ists = CLEARED;  // Interrupt Start Time Stamp
 
 void handleCsenseInt() {
   cSenseIntCnt++;
@@ -41,6 +46,7 @@ void enableInterrupts() {
   vSenseIntCnt = 0;
   cSenseIntCnt = 0;
   isInterruptEnabled = true;
+  ists = millis();
   attachInterrupt(digitalPinToInterrupt(PIN_CSENSE), handleCsenseInt, FALLING);
   attachInterrupt(digitalPinToInterrupt(PIN_VSENSE), handleVsenseInt, FALLING);
 }
@@ -63,6 +69,7 @@ void setRelay(const bool on) {
   cSenseIntCnt = 0;
   lastStatus = CLEARED;
   if (!isInterruptEnabled && relayState) enableInterrupts();  // Abort wait 10sec to enable power measure if load on.
+  writeTimer.once(0.5, writeState);  // Write state to SPIFFS
 }
 
 // Handle button click to the switch.
@@ -96,11 +103,17 @@ void checkStatus() {
   // Don't waste resources if no measures ready.
   if (!isInterruptEnabled && lastStatus != CLEARED) return;
 
+  if (vSenseIntCnt < 10 || cSenseIntCnt < 10) {
+    // Let to Interrupts 100ms to count something. Non-blocking wait.
+    ulong ts = millis();
+    while (millis() - ts < 150);
+  }
+
   int r = (relayState) ? 1 : 0;
   int v = (vSenseIntCnt) ? 2 : 0;
   int c = (cSenseIntCnt>10) ? 4 : 0;  // Filter noise: can be few inductive pulses.
-  if (v+c) {
-    disableInterrupts();  // Pause
+  if (v+c || ists > 60000) {
+    disableInterrupts();  // Pause if got measurements or waited too long time (60 sec)
   }
   
   if (lastStatus != r+v+c) {
@@ -124,19 +137,77 @@ void loopHandler() {
   }
 }
 
+void debugReport() {
+  FSInfo info;
+  SPIFFS.info(info);
+  uint32_t freeBytes = info.totalBytes - info.usedBytes;
+  String str = "";
+  uint32_t cnt = 0;
+  Dir dir = SPIFFS.openDir(PREFIX);
+  while (dir.next()) {
+    // str += dir.fileName() + "; ";
+    cnt++;
+  }
+  lightNode.setProperty("status").send("Free=" + String(freeBytes) + ", Files: " + String(cnt));
+}
+
+void writeState() {
+  // Get space remaining.
+  FSInfo info;
+  SPIFFS.info(info);
+  uint32_t freeBytes = info.totalBytes - info.usedBytes;
+
+  // If less than 1k: set global file name to 0 and remove all files.
+  if (freeBytes <= 1024) {
+    lastFileIndex = 0;
+    Dir dir = SPIFFS.openDir(PREFIX);
+    while (dir.next()) {
+      SPIFFS.remove(dir.fileName());
+    }
+    lightNode.setProperty("status").send("Flash cleaned");
+  } else {
+    // Increment global file name
+    lastFileIndex++;
+  }
+
+  // Write global file name. File name format: /stateX_N, where X is 0 or 1, N is sequential number.
+  File f = SPIFFS.open(PREFIX + (relayState?"1":"0") + "_" + String(lastFileIndex), "w");
+  f.close();
+  // debugReport();
+}
+
+int readState() {
+  // list of all files. File name format: /stateX_N, where X is 0 or 1, N is sequential number.
+  uint32_t index = 0;
+  Dir dir = SPIFFS.openDir(PREFIX);
+  while (dir.next()) {
+      index = dir.fileName().substring(8).toInt();
+      // Extract largest number
+      if (index > lastFileIndex) lastFileIndex = index;
+  }
+  // Return 1 (on) if no files found (Light on when very first boot and not toggled yet)
+  if (index == 0) return 1;
+  // Return state of largest file name
+  return (int)SPIFFS.exists(PREFIX + "1_" + String(lastFileIndex));
+}
+
 void setup() {
+  SPIFFS.begin();  // Call SPIFFS before Homie awake: the state required ASAP.
   Serial.begin(115200);
   Serial << endl << endl;
-  pinMode(PIN_RELAY, OUTPUT);
-  digitalWrite(PIN_RELAY, HIGH);
 
-  relayState = true;
+  // Operate relay directly: Homie isn't ready yet to treat ESP properly at this stage.
+  int restored = readState();
+  pinMode(PIN_RELAY, OUTPUT);
+  digitalWrite(PIN_RELAY, restored);
+  relayState = restored == 1;
+
   pinMode(PIN_VSENSE, INPUT);
   pinMode(PIN_CSENSE, INPUT);
   // pinMode(PIN_BUTTON, INPUT_PULLUP);
   // debouncer.attach(PIN_BUTTON);
   // debouncer.interval(20);
-  Homie_setFirmware("awesome-relay", "1.0.7");
+  Homie_setFirmware("awesome-relay", "1.1.0");
   // Homie_setBrand("shm");  // homie ???
   Homie.setResetTrigger(PIN_BUTTON, LOW, 5000);
 
@@ -153,6 +224,7 @@ void setup() {
   // Run following after Homie.setup() since they use Homie infrastructure.
   enableInterrupts();  // Enable once. Rest of enables with be done from "disableInterrupts()"
   statusTimer.attach(1.0, checkStatus);
+  expTimer.once(30.0, debugReport);
 }
 
 void loop() {
