@@ -2,21 +2,21 @@
 
 Changes from [first version](https://github.com/igrowing/esp8266_smart_home/tree/master/modules/room_sensor):
 - Based on separate HW, old broken outlet, used as mechanical basis and its PSU. Tiny size.
-- No nore Easy-ESP. Moved to [Homie v2.0.0](https://github.com/marvinroger/homie-esp8266). More flexible in features, more stable, works faster.
+- No more Easy-ESP. Moved to [Homie v2.0.0](https://github.com/marvinroger/homie-esp8266). More flexible in features, more stable, works faster.
 - BME sensor in use: air quality, temperature, humidity, air pressure. Average measurements by continuous reads. Send report periodically (interval is set via MQTT, default 15 min).
 - More clicks :)
   - Single click - toggle.
   - Long click - set timer (timer is adjustible via MQTT, default 15 min).
   - Double click - send status immediately.
-  - Very long click (10sec) - reset to vactory defaults, on courtesy of Homie.
+  - Very long click (10sec) - reset to factory defaults, on courtesy of Homie.
 - When PIR detects movement the LED is lit for 1 second. Aggregative report to MQTT once in a minute to avoid flooding.
-- The room sensor now remembers its state (on or off) and all customised settings. After power failure it restores all the statuses and values as they was before the black out. 
+- The room sensor now remembers its state (on or off) and all customised settings. After power failure it restores all the statuses and values as they was before the black out. Special SPIFFS writing is used to avoid fast wearout. 
 
 ## Initialization
-Once the firmware is uploaded and the module is powered on, the Homie-xxxxxx AP will appear. It might take a minute or two if you use brand bew ESP8266 with unwritten Flash. Homie will format the SPIFFS first.
+Once the firmware is uploaded and the module is powered on, the Homie-xxxxxx AP will appear. It might take a minute or two if you use brand new ESP8266 with unwritten Flash. Homie will format the SPIFFS first.
 - Open Homie init portal: http://marvinroger.github.io/homie-esp8266/configurators/v2/
 - Switch your computer or cellphone to that Homie-AP.
-- Look in the portal when the new device will be recognized.
+- Look in the portal when the new device will be recognized. This takes 5-25 secs.
 - Follow step-by-step on-screen instructions. DO NOT change the MQTT base name, leave it blank to avoid a bug in Homie. Allow OTA.
 - Once the setup finished, switch back to your regular network: now you'll Homie reports in your MQTT broker.
 
@@ -80,6 +80,7 @@ mosquitto_pub -t homie/awesome-room/power/timer-interval-s/set -m '1800'
 
 ## What's next (aka TODO:)
 - Add light sensor like in the first room sensor... Doubtful need.
+- Add more hardware: IR transmitter to control TV, AC, etc. Flame detector to alert fire. Accelerometer to register earthquakes :) Microphone for voice actions.
 - Publish schematics.
 - Publish some picures.
 - Add internal scheduling. Doubtful need since MQTT works well.
