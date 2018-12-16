@@ -32,7 +32,7 @@ Follow step-by-step on-screen instructions. DO NOT change the MQTT base name, le
 Once the setup finished, switch back to your regular network: now you'll Homie reports in your MQTT broker.
 
 ## MQTT usage
-### Reporting from the Room sensor to MQTT broker
+### Reporting from the Pump controller to MQTT broker
 When the room sensor is booted it publishes following to MQTT broker:
 
 ```
@@ -66,7 +66,7 @@ homie/pump/pump/pump off
 homie/pump/pump/relay false
 ```
 
-### Commands from the MQTT broker to Room sensor
+### Commands from the MQTT broker to Pump controller
 All the examples use mosquitto package in Linux. Feel free use your own broker. Topics and messages: that's what MQTT examples about.
 
 You can disable and enable the pump by following MQTT commands accordingly:
