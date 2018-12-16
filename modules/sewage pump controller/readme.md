@@ -14,12 +14,13 @@ Couple of times my basement had suffered from ... well... sewage overflow due to
 - The pump can be disabled by local button click: this is handy for maintenance.
 - The UI is made over Node-RED (works with no UI too).
 - The circuit is equipped with surge protection, OVP, OCP, EMI features where needed.
-- the sketch is implemented with ESP8266/ESP8285 over [Homie framework](https://github.com/marvinroger/homie-esp8266).
+- The sketch is implemented with ESP8266/ESP8285 over [Homie framework](https://github.com/marvinroger/homie-esp8266).
 
 ## Initialization
 Once the firmware is uploaded and the module is powered on, the Homie-xxxxxx AP will appear. It might take a minute or two if you use brand new ESP8266 with unwritten Flash. Homie will format the SPIFFS first.
 
 Open Homie init portal: http://marvinroger.github.io/homie-esp8266/configurators/v2/
+
 Switch your computer or cellphone to that Homie-AP.
 Look in the portal when the new device will be recognized. This takes 5-25 secs.
 Follow step-by-step on-screen instructions. DO NOT change the MQTT base name, leave it blank to avoid a bug in Homie. Allow OTA.
@@ -63,10 +64,10 @@ homie/pump/pump/relay false
 ### Commands from the MQTT broker to Room sensor
 All the examples use mosquitto package in Linux. Feel free use your own broker. Topics and messages: that's what MQTT examples about.
 
-You can disable and enable the pump by following MQTT commands:
+You can disable and enable the pump by following MQTT commands accordingly:
 ```
-mosquitto_pub -t hhomie/pump/pump/relay/set/set -m 'true'
-mosquitto_pub -t hhomie/pump/pump/relay/set/set -m 'false'
+mosquitto_pub -t homie/pump/pump/relay/set/set -m 'true'
+mosquitto_pub -t homie/pump/pump/relay/set/set -m 'false'
 ```
 
 You can set a minimal distance of water level (limit) to trigger the alert:
