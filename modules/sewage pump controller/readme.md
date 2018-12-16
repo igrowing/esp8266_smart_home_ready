@@ -6,6 +6,8 @@ Couple of times my basement had suffered from ... well... sewage overflow due to
 
 ## Features
 
+![PCB assembly](https://github.com/igrowing/esp8266_smart_home/blob/master/modules/sewage%20pump%20controller/pump_controller_assy.jpg?raw=true "PCB Assembly of Sewage Pump Controller")
+
 - Monitors level of water. When the level rises to the limit and not flushed by the pump, it sends me alert. Then i have day or two to replace the pump.
 - Monitors pump work. If it works too long time (>5min in a row), it disables the pump for cooling for 10 minutes and sends me alert: this means the pump doesn't really flush.
 - The Water level, the Pump work and the Controller status are published over MQTT.
@@ -15,6 +17,9 @@ Couple of times my basement had suffered from ... well... sewage overflow due to
 - The UI is made over Node-RED (works with no UI too).
 - The circuit is equipped with surge protection, OVP, OCP, EMI features where needed.
 - The sketch is implemented with ESP8266/ESP8285 over [Homie framework](https://github.com/marvinroger/homie-esp8266).
+
+![Node-RED flow](https://github.com/igrowing/esp8266_smart_home/blob/master/modules/sewage%20pump%20controller/nr_flow.jpg?raw=true "Node-RED flow for Sewage Pump Controller")
+
 
 ## Initialization
 Once the firmware is uploaded and the module is powered on, the Homie-xxxxxx AP will appear. It might take a minute or two if you use brand new ESP8266 with unwritten Flash. Homie will format the SPIFFS first.
@@ -33,7 +38,7 @@ When the room sensor is booted it publishes following to MQTT broker:
 ```
 homie/pump/$homie 2.0.0
 homie/pump/$mac 5C:CF:7F:1A:9B:FF
-homie/pump/$name pump comtroller
+homie/pump/$name pump controller
 homie/pump/$localip ip.ip.ip.ip
 homie/pump/$stats/interval 0
 homie/pump/$fw/name pump-control
