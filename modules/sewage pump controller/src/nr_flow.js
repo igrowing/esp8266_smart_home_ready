@@ -1,0 +1,618 @@
+[
+    {
+        "id": "ad0270ab.d9a45",
+        "type": "mqtt in",
+        "z": "f1073339.c03c3",
+        "name": "",
+        "topic": "homie/pump/#",
+        "qos": "2",
+        "broker": "2bd2afca.e962e",
+        "x": 90,
+        "y": 980,
+        "wires": [
+            [
+                "67a10ed4.fec4f",
+                "fdf1d81d.7a2038"
+            ]
+        ]
+    },
+    {
+        "id": "67a10ed4.fec4f",
+        "type": "switch",
+        "z": "f1073339.c03c3",
+        "name": "",
+        "property": "topic",
+        "propertyType": "msg",
+        "rules": [
+            {
+                "t": "regex",
+                "v": "distance$",
+                "vt": "str",
+                "case": false
+            },
+            {
+                "t": "cont",
+                "v": "pump/pump/pump",
+                "vt": "str"
+            },
+            {
+                "t": "regex",
+                "v": "relay$",
+                "vt": "str",
+                "case": false
+            },
+            {
+                "t": "cont",
+                "v": "signal",
+                "vt": "str"
+            },
+            {
+                "t": "cont",
+                "v": "uptime",
+                "vt": "str"
+            },
+            {
+                "t": "cont",
+                "v": "alert",
+                "vt": "str"
+            },
+            {
+                "t": "cont",
+                "v": "online",
+                "vt": "str"
+            }
+        ],
+        "checkall": "true",
+        "repair": false,
+        "outputs": 7,
+        "x": 250,
+        "y": 980,
+        "wires": [
+            [
+                "3b456f9.9bac69",
+                "9efe362a.8988c8"
+            ],
+            [
+                "45b73bd3.938154"
+            ],
+            [
+                "61a7f1f4.2f357"
+            ],
+            [
+                "c063f1a4.ae4f6",
+                "d4d2c8d8.bc5218"
+            ],
+            [
+                "262376a.dae3d8a"
+            ],
+            [
+                "826a1ec9.dad1b"
+            ],
+            [
+                "d4d2c8d8.bc5218",
+                "262376a.dae3d8a"
+            ]
+        ]
+    },
+    {
+        "id": "826a1ec9.dad1b",
+        "type": "link out",
+        "z": "f1073339.c03c3",
+        "name": "send_pump_alerts",
+        "links": [
+            "28f28203.c20d0e"
+        ],
+        "x": 375,
+        "y": 1080,
+        "wires": []
+    },
+    {
+        "id": "fdf1d81d.7a2038",
+        "type": "debug",
+        "z": "f1073339.c03c3",
+        "name": "pump_log",
+        "active": true,
+        "tosidebar": false,
+        "console": false,
+        "tostatus": false,
+        "complete": "true",
+        "x": 220,
+        "y": 880,
+        "wires": []
+    },
+    {
+        "id": "28815061.3d278",
+        "type": "persist in",
+        "z": "f1073339.c03c3",
+        "name": "sewage_pump",
+        "storageNode": "86967948.3d4758",
+        "x": 910,
+        "y": 880,
+        "wires": []
+    },
+    {
+        "id": "b68281ce.5474b",
+        "type": "persist out",
+        "z": "f1073339.c03c3",
+        "name": "sewage_pump",
+        "storageNode": "86967948.3d4758",
+        "x": 630,
+        "y": 880,
+        "wires": [
+            [
+                "c063f1a4.ae4f6"
+            ]
+        ]
+    },
+    {
+        "id": "15ceac98.239263",
+        "type": "ui_text",
+        "z": "f1073339.c03c3",
+        "group": "81a3a0f0.5f5d2",
+        "order": 7,
+        "width": "1",
+        "height": "1",
+        "name": "",
+        "label": "Pump",
+        "format": "{{msg.payload}}",
+        "layout": "col-center",
+        "x": 910,
+        "y": 960,
+        "wires": []
+    },
+    {
+        "id": "e647afd9.c9776",
+        "type": "ui_text",
+        "z": "f1073339.c03c3",
+        "group": "81a3a0f0.5f5d2",
+        "order": 6,
+        "width": "1",
+        "height": "1",
+        "name": "",
+        "label": "Relay",
+        "format": "{{msg.payload}}",
+        "layout": "col-center",
+        "x": 910,
+        "y": 1000,
+        "wires": []
+    },
+    {
+        "id": "7e2448cf.73b308",
+        "type": "ui_text",
+        "z": "f1073339.c03c3",
+        "group": "81a3a0f0.5f5d2",
+        "order": 3,
+        "width": "2",
+        "height": "1",
+        "name": "",
+        "label": "Uptime",
+        "format": "{{msg.payload}}",
+        "layout": "col-center",
+        "x": 640,
+        "y": 1060,
+        "wires": []
+    },
+    {
+        "id": "c063f1a4.ae4f6",
+        "type": "ui_chart",
+        "z": "f1073339.c03c3",
+        "name": "",
+        "group": "81a3a0f0.5f5d2",
+        "order": 8,
+        "width": 0,
+        "height": 0,
+        "label": "",
+        "chartType": "line",
+        "legend": "true",
+        "xformat": "dd HH:mm",
+        "interpolate": "step",
+        "nodata": "No data",
+        "dot": false,
+        "ymin": "0",
+        "ymax": "100",
+        "removeOlder": 1,
+        "removeOlderPoints": "1000",
+        "removeOlderUnit": "604800",
+        "cutout": 0,
+        "useOneColor": false,
+        "colors": [
+            "#1f77b4",
+            "#aec7e8",
+            "#ff7f0e",
+            "#2ca02c",
+            "#98df8a",
+            "#d62728",
+            "#ff9896",
+            "#9467bd",
+            "#c5b0d5"
+        ],
+        "useOldStyle": false,
+        "x": 740,
+        "y": 920,
+        "wires": [
+            [
+                "28815061.3d278"
+            ],
+            []
+        ]
+    },
+    {
+        "id": "3b456f9.9bac69",
+        "type": "ui_gauge",
+        "z": "f1073339.c03c3",
+        "name": "Distance",
+        "group": "81a3a0f0.5f5d2",
+        "order": 1,
+        "width": "2",
+        "height": "2",
+        "gtype": "wave",
+        "title": "Distance",
+        "label": "cm",
+        "format": "{{value}}",
+        "min": "20",
+        "max": "100",
+        "colors": [
+            "#00b500",
+            "#e6e600",
+            "#ca3838"
+        ],
+        "seg1": "",
+        "seg2": "",
+        "x": 440,
+        "y": 860,
+        "wires": []
+    },
+    {
+        "id": "45b73bd3.938154",
+        "type": "change",
+        "z": "f1073339.c03c3",
+        "name": "digitize",
+        "rules": [
+            {
+                "t": "change",
+                "p": "payload",
+                "pt": "msg",
+                "from": "on.*",
+                "fromt": "re",
+                "to": "25",
+                "tot": "str"
+            },
+            {
+                "t": "change",
+                "p": "payload",
+                "pt": "msg",
+                "from": "off",
+                "fromt": "str",
+                "to": "0",
+                "tot": "str"
+            }
+        ],
+        "action": "",
+        "property": "",
+        "from": "",
+        "to": "",
+        "reg": false,
+        "x": 440,
+        "y": 940,
+        "wires": [
+            [
+                "c063f1a4.ae4f6",
+                "80e47b2e.55b1a8"
+            ]
+        ]
+    },
+    {
+        "id": "61a7f1f4.2f357",
+        "type": "change",
+        "z": "f1073339.c03c3",
+        "name": "digitize",
+        "rules": [
+            {
+                "t": "change",
+                "p": "payload",
+                "pt": "msg",
+                "from": "true",
+                "fromt": "str",
+                "to": "25",
+                "tot": "str"
+            },
+            {
+                "t": "change",
+                "p": "payload",
+                "pt": "msg",
+                "from": "false",
+                "fromt": "str",
+                "to": "0",
+                "tot": "str"
+            }
+        ],
+        "action": "",
+        "property": "",
+        "from": "",
+        "to": "",
+        "reg": false,
+        "x": 520,
+        "y": 980,
+        "wires": [
+            [
+                "c063f1a4.ae4f6",
+                "a93fda56.a6ac08"
+            ]
+        ]
+    },
+    {
+        "id": "39264049.572c9",
+        "type": "ui_gauge",
+        "z": "f1073339.c03c3",
+        "name": "Wifi",
+        "group": "81a3a0f0.5f5d2",
+        "order": 4,
+        "width": "2",
+        "height": "2",
+        "gtype": "gage",
+        "title": "Wifi",
+        "label": "%",
+        "format": "{{value}}",
+        "min": "0",
+        "max": "100",
+        "colors": [
+            "#ff0000",
+            "#e6e600",
+            "#00ff40"
+        ],
+        "seg1": "40",
+        "seg2": "70",
+        "x": 630,
+        "y": 1020,
+        "wires": []
+    },
+    {
+        "id": "9efe362a.8988c8",
+        "type": "change",
+        "z": "f1073339.c03c3",
+        "name": "digitize",
+        "rules": [
+            {
+                "t": "change",
+                "p": "payload",
+                "pt": "msg",
+                "from": "\\D+",
+                "fromt": "re",
+                "to": "",
+                "tot": "str"
+            }
+        ],
+        "action": "",
+        "property": "",
+        "from": "",
+        "to": "",
+        "reg": false,
+        "x": 440,
+        "y": 900,
+        "wires": [
+            [
+                "c063f1a4.ae4f6"
+            ]
+        ]
+    },
+    {
+        "id": "4c6fe229.d9050c",
+        "type": "ui_switch",
+        "z": "f1073339.c03c3",
+        "name": "",
+        "label": "Stop Pump",
+        "group": "81a3a0f0.5f5d2",
+        "order": 5,
+        "width": "3",
+        "height": "1",
+        "passthru": true,
+        "decouple": "false",
+        "topic": "homie/pump/pump/relay/set",
+        "style": "",
+        "onvalue": "true",
+        "onvalueType": "bool",
+        "onicon": "",
+        "oncolor": "",
+        "offvalue": "false",
+        "offvalueType": "bool",
+        "officon": "",
+        "offcolor": "",
+        "x": 90,
+        "y": 1060,
+        "wires": [
+            [
+                "dee0ca25.3653c8"
+            ]
+        ]
+    },
+    {
+        "id": "dee0ca25.3653c8",
+        "type": "mqtt out",
+        "z": "f1073339.c03c3",
+        "name": "toggle relay",
+        "topic": "",
+        "qos": "",
+        "retain": "",
+        "broker": "2bd2afca.e962e",
+        "x": 270,
+        "y": 1120,
+        "wires": []
+    },
+    {
+        "id": "a93fda56.a6ac08",
+        "type": "change",
+        "z": "f1073339.c03c3",
+        "name": "verbose",
+        "rules": [
+            {
+                "t": "change",
+                "p": "payload",
+                "pt": "msg",
+                "from": "25",
+                "fromt": "num",
+                "to": "ON",
+                "tot": "str"
+            },
+            {
+                "t": "change",
+                "p": "payload",
+                "pt": "msg",
+                "from": "0",
+                "fromt": "num",
+                "to": "OFF",
+                "tot": "str"
+            }
+        ],
+        "action": "",
+        "property": "",
+        "from": "",
+        "to": "",
+        "reg": false,
+        "x": 760,
+        "y": 1000,
+        "wires": [
+            [
+                "e647afd9.c9776"
+            ]
+        ]
+    },
+    {
+        "id": "80e47b2e.55b1a8",
+        "type": "change",
+        "z": "f1073339.c03c3",
+        "name": "verbose",
+        "rules": [
+            {
+                "t": "change",
+                "p": "payload",
+                "pt": "msg",
+                "from": "25",
+                "fromt": "num",
+                "to": "ON",
+                "tot": "str"
+            },
+            {
+                "t": "change",
+                "p": "payload",
+                "pt": "msg",
+                "from": "0",
+                "fromt": "num",
+                "to": "OFF",
+                "tot": "str"
+            }
+        ],
+        "action": "",
+        "property": "",
+        "from": "",
+        "to": "",
+        "reg": false,
+        "x": 760,
+        "y": 960,
+        "wires": [
+            [
+                "15ceac98.239263"
+            ]
+        ]
+    },
+    {
+        "id": "1745f885.3873b7",
+        "type": "ui_numeric",
+        "z": "f1073339.c03c3",
+        "name": "",
+        "label": "Limit",
+        "group": "81a3a0f0.5f5d2",
+        "order": 2,
+        "width": "2",
+        "height": "1",
+        "passthru": true,
+        "topic": "homie/pump/pump/distance-threshold/set",
+        "format": "{{value}}",
+        "min": "20",
+        "max": "200",
+        "step": 1,
+        "x": 70,
+        "y": 1120,
+        "wires": [
+            [
+                "dee0ca25.3653c8"
+            ]
+        ]
+    },
+    {
+        "id": "d4d2c8d8.bc5218",
+        "type": "function",
+        "z": "f1073339.c03c3",
+        "name": "mux",
+        "func": "if (msg.topic.includes('online') && msg.payload == 'false') {\n    msg.topic = 'homie/pump/$stats/signal';\n    msg.payload = 0;\n}\nreturn msg;    ",
+        "outputs": 1,
+        "noerr": 0,
+        "x": 490,
+        "y": 1020,
+        "wires": [
+            [
+                "39264049.572c9"
+            ]
+        ]
+    },
+    {
+        "id": "262376a.dae3d8a",
+        "type": "function",
+        "z": "f1073339.c03c3",
+        "name": "mux",
+        "func": "if (msg.topic.includes('online') && msg.payload == 'false') {\n    msg.topic = 'homie/pump/$stats/uptime';\n    msg.payload = 0;\n}\nreturn msg;    ",
+        "outputs": 1,
+        "noerr": 0,
+        "x": 490,
+        "y": 1060,
+        "wires": [
+            [
+                "7e2448cf.73b308"
+            ]
+        ]
+    },
+    {
+        "id": "2bd2afca.e962e",
+        "type": "mqtt-broker",
+        "z": "",
+        "name": "",
+        "broker": "localhost",
+        "port": "1883",
+        "clientid": "",
+        "usetls": false,
+        "compatmode": true,
+        "keepalive": "60",
+        "cleansession": true,
+        "birthTopic": "",
+        "birthQos": "0",
+        "birthPayload": "",
+        "willTopic": "",
+        "willQos": "0",
+        "willPayload": ""
+    },
+    {
+        "id": "86967948.3d4758",
+        "type": "persist-store",
+        "z": "",
+        "filename": "sewage_pump.json",
+        "interval": "7200"
+    },
+    {
+        "id": "81a3a0f0.5f5d2",
+        "type": "ui_group",
+        "z": "",
+        "name": "Garden: sewage pump",
+        "tab": "531ef1f0.9a426",
+        "order": 6,
+        "disp": true,
+        "width": "9",
+        "collapse": false
+    },
+    {
+        "id": "531ef1f0.9a426",
+        "type": "ui_tab",
+        "z": "",
+        "name": "MyDashboard",
+        "icon": "home",
+        "order": 1
+    }
+]
