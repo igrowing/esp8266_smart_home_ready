@@ -1,33 +1,38 @@
+/******************************************************************************************
+ *     Sewage Pump Controller
+ * version 2.0 - rewritten with Homie, rebuilt with custom HW.
+ * (2018) iGrowing
+ ******************************************************************************************/
 #include <Homie.h>
 
 //   -- Constants --
-const int PIN_BUTTON  = 0;  // and LED. Do not light the LED for longer than 4 sec.
-// const int PIN_POWER   = 4;  // TODO: Remove. No need battery sensing.
+const int PIN_BUTTON  = 0;  // and LED. Do not light the LED for longer than 8 sec. Write LOW for 10sec or longer for factory reset
 const int PIN_RELAY   = 12;
 const int PIN_TRIGGER = 14;
 const int PIN_ECHO    = 13;
 
 #define RESET_DIST      0
 #define RESET_ADC       0
+#define RESET_ADC_MIN   1024
+#define RESET_ADC_MAX   0
 #define SAMPLES_ADC     250
 #define SAMPLES_DIST    10
-#define RMS_ON_TRSH     1000   // mA.
+#define RMS_ON_TRSH     800    // mA.
 #define PUMP_ON_TIMEOUT 300.0  // 5 min = 5 * 60sec
 #define PUMP_COOLTIME   600.0  // 10 min = 10 * 60sec
-#define ADC_READ_INTERVAL 7  // No less than 3 ms: ADC kills ESP on frequent use. 
+#define ADC_READ_INTERVAL 7    // No less than 3 ms: ADC kills ESP on frequent use. 4,5,6 ms are aliquot to 20ms (50Hz) 
 
 //    -- Globals --
 volatile uint16_t dist_trsh             = 25;  // cm.
 volatile int lastPwrState               = -1;
 volatile int lastBtnValue               = -1;
-volatile uint_fast32_t adc_agg          = RESET_ADC;
+volatile short min_adc                  = RESET_ADC_MIN;
+volatile short max_adc                  = RESET_ADC_MAX;
 volatile uint8_t adc_cnt                = RESET_ADC;
 volatile uint_fast32_t dist_agg         = RESET_DIST;
 volatile uint8_t dist_cnt               = RESET_DIST;
-volatile uint_fast32_t pump_on_time     = 0;
 volatile bool pump_off_reported         = false;
 volatile bool pump_on_reported          = false;
-// volatile bool pump_alert_reported       = false;
 volatile bool distance_alert_reported   = false;
 
 Ticker adcTimer;
@@ -62,7 +67,7 @@ bool storeVariable(char *name, uint32_t val) {
   File file = SPIFFS.open(PREFIX_VAR + String(name), "w");
   // TODO: Add free space validation like in writeState
   if (!file.print(String(val))) {
-    pumpControlNode.setProperty("alert").send("Failed to write variable to SPIFFS: " + String(name) + ":" + String(val));
+    pumpControlNode.setProperty("alert").send("Failed to write variable to SPIFFS: " + String(name) + "=" + String(val));
     return false;
   } else {
     return true;
@@ -79,23 +84,23 @@ String f2str(float_t in, int16_t precision) {
  *     HARDWARE HANDLING FUNCTIONS
  ******************************************************************************************/
 void read_adc() {
-  short val = analogRead(A0) - 512; // 2^10 = 1024 => 1024/2 - 1 = 511 => 0 level of ADC
-  adc_agg += val*val;
+  short val = analogRead(A0);
+  min_adc = (min_adc > val)?val:min_adc;
+  max_adc = (max_adc < val)?val:max_adc;
   adc_cnt++;
 }
 
-uint32_t measure_current() {
-  // ADC isn't too much stable. It drifts measurements. As result SQRT at no current is 8-60.
-  // Max values for 8A current is about 250. So formula for RMS current in given circuit:
-  // (sqrt(aggeraged_powered_two / total_measures) - shift(50) no less than 0) * upscale(1.25) * factor(32)
-  // TODO: improve measure by fitting measure to drift. Sharp changes are real.
-  int adj = (int)sqrt(adc_agg / adc_cnt) - 50;
-  adj = (adj < 0) ? 0 : adj;
-  uint32_t current = (uint32_t)(adj * 42);  // TODO: Calibrate here.
+uint16_t measure_current() {
+  // ADC isn't too much stable. It drifts measurements. As result SQRT method of RMS calc isn't acceptable.
+  short current = (max_adc - min_adc) - 3; // -3 to remove noise
+  current = (current < 0)?0:current;       // Eliminate negatives
+  current = current * 12;                  // Calibrate
   // Reset counters after reading, start from beginning.
-  adc_agg = RESET_ADC;
   adc_cnt = RESET_ADC;
-  Homie.getLogger() << "Current: " << String(current) << "mA" << endl;
+  min_adc = RESET_ADC_MIN;
+  max_adc = RESET_ADC_MAX;
+
+  // Homie.getLogger() << "Current: " << String(current) << "mA" << endl;
   return current;
 }
 
@@ -105,17 +110,24 @@ void runAdc() {
 }
 
 void read_distance() {
-  digitalWrite(PIN_TRIGGER, HIGH);
-  delayMicroseconds(10);
-  digitalWrite(PIN_TRIGGER, LOW);
+  // put a 3MOhm restist between the pin 4 and 9 from the U1 EM78P153S Controller, now it works!
 
-  long duration = pulseIn(PIN_ECHO, HIGH, 30000);
+  // digitalWrite(PIN_ECHO, LOW);
+  // long ts = millis();
+  // while (millis() - ts < 100) delayMicroseconds(100);
+  // pinMode(PIN_ECHO, INPUT);    
+  digitalWrite(PIN_TRIGGER, HIGH);
+  delayMicroseconds(15);
+  // Homie.getLogger() << "ECHO:" << String(digitalRead(PIN_ECHO)) << endl;
+  // pumpControlNode.setProperty("distance-temp").send(String(digitalRead(PIN_ECHO)));
+  digitalWrite(PIN_TRIGGER, LOW);
+  // delayMicroseconds(10);
+  // // Homie.getLogger() << "ECHO:" << String(digitalRead(PIN_ECHO)) << endl; 
+  // pumpControlNode.setProperty("distance-temp").send(String(digitalRead(PIN_ECHO)));
+
+  long duration = pulseIn(PIN_ECHO, HIGH, 10000);
   float distance = duration / 58.2;   // calibrate here
-  dist_agg += (uint_fast32_t)distance;
-  pumpControlNode.setProperty("distance-temp").send(String(distance));
-  // Don't increment counter if no mains power: SR-04 doesn't work on battery.
-  // TODO: Remove. No need battery sensing.
-  // if (lastPwrState) dist_cnt++;
+  dist_agg += (uint32_t)distance;
   dist_cnt++;
 }
 
@@ -137,6 +149,11 @@ void toggleRelay() {
  *     COMMUNICATION FUNCTIONS and HANDLERS
  *   DO NOT use underscore _ in MQTT topics and properties. (Can use in messages thus).
  ******************************************************************************************/
+void reportRelayStatus() {
+  pumpControlNode.setProperty("relay").send(digitalRead(PIN_RELAY) ? "false" : "true");
+}
+
+// homie/pump/pump/relay/set true
 bool relayHandler(const HomieRange& range, const String& value) {
   if (value == "toggle") {
     toggleRelay();
@@ -149,9 +166,24 @@ bool relayHandler(const HomieRange& range, const String& value) {
   return true;
 }
  
+// homie/pump/pump/install-mode/set true
+bool installModeHandler(const HomieRange& range, const String& value) {
+  if (value != "true" && value != "false") return false;
+
+  distanceTimer.detach();
+  if (value == "true") {
+    distanceTimer.attach(1.0, read_distance);
+  } else {
+    distanceTimer.attach(60.0, read_distance);
+  };
+  return true;
+}
+
+// homie/pump/pump/distance-threshold/set 123
 bool distanceHandler(const HomieRange& range, const String& value) {
   int val = atoi(value.c_str());
   if (val < 20 || val > 200) {
+    pumpControlNode.setProperty("alert").send("Invalid value for distance-threshold:" + String(value) + ". Valid: 20-200.");
     return false;
   }
 
@@ -174,7 +206,7 @@ void alertPump() {
 
 void alertDistance() {
   if (Homie.isConnected() && !distance_alert_reported) {
-    pumpControlNode.setProperty("alert").send("Distance is closer than 25cm");
+    pumpControlNode.setProperty("alert").send("Distance is closer than " + String(dist_trsh) + "cm");
     distance_alert_reported = true;
   } else {
     distance_alert_reported = false;
@@ -189,11 +221,11 @@ void setupHandler() {
   // Serial.println();
   // If no interval stored yet, keep a default value. Else restore from Flash.
   dist_trsh = (restoreVariable("dist_trsh") == ERR_NUM)?dist_trsh:restoreVariable("dist_trsh");
-  Homie.getLogger() << "dist_trsh: " << String(dist_trsh) << endl; 
-  pumpControlNode.setProperty("distance-threshold").send(String(dist_trsh));  // ack back
+  pumpControlNode.setProperty("distance-threshold").send(String(dist_trsh));  // Inform UI about initial threshold.
 
-  distanceTimer.attach(10.0, read_distance);
-  adcTimer.once(30.0, runAdc);  // Lel some time to calm down after boot.
+  distanceTimer.attach(60.0, read_distance);      // Start reading distance.
+  adcTimer.once(30.0, runAdc);                    // Let some time to calm down after boot.
+  pumpAlertTimer.once(20.0, reportRelayStatus);   // Inform UI about initial relay status.
 }
 
 void loopHandler() {
@@ -206,27 +238,9 @@ void loopHandler() {
     }
   }
 
-  // Detect power failure and restore. Not critical => so it's not important if MQTT isn't sent.
-  // TODO: Remove. No need battery sensing.
-  // int pwr = digitalRead(PIN_POWER);
-  // if (pwr != lastPwrState) {
-  //   lastPwrState = pwr;
-  //   pumpControlNode.setProperty("power").send(pwr ? "mains" : "battery");
-  //   Homie.getLogger() << "Powered by " << (pwr ? "mains" : "battery") << endl;
-  // }
-
-  // if (Homie.isConfigured()) {
-  //   if (!adcTimer.active()) {
-  //     Homie.getLogger() << "ADC dead " << String(adc_cnt) << endl;
-  //     // adcTimer.attach_ms(4, read_adc);  // 20 ms for period / 4 ms = 5 samples per period = 250 samples/second. No faster than 3ms!
-  //   } else {
-  //     Homie.getLogger() << String(adc_agg) << String(adc_cnt) << endl;
-  //   }
-  // }
-
   // Care about pump even when no network available.
   if (adc_cnt > SAMPLES_ADC) {
-    uint32_t current = measure_current();
+    uint16_t current = measure_current();
     // After measurement pause ADC for 3 sec: give time to other processes.
     adcTimer.detach();
     adcTimer.once(3.0, runAdc);
@@ -234,7 +248,6 @@ void loopHandler() {
     // Send status only once on pump change. Set timer to alert after timeout if pump is not off.
     if (current > RMS_ON_TRSH) {
       if (!pump_on_reported) {
-        pump_on_time = millis();
         pumpControlNode.setProperty("pump").send("on. Current =" + f2str((float)(current / 1000.0), 1) + " A");
         pump_on_reported = true;
         pump_off_reported = false;
@@ -264,29 +277,26 @@ void loopHandler() {
       distance_alert_reported = false;
     }
   }
-
-  // delay(1);
 }
 
 void setup() {
   Serial.begin(115200);
   Serial << endl << endl;
-  // pinMode(PIN_POWER, INPUT);    // TODO: Remove. No need battery sensing.
   pinMode(PIN_RELAY, OUTPUT);
   pinMode(PIN_TRIGGER, OUTPUT);
   pinMode(PIN_ECHO, INPUT);
   digitalWrite(PIN_RELAY, HIGH);
 
-  Homie_setFirmware("pump-control", "1.0.2");
+  Homie_setFirmware("pump-control", "1.0.3");
 
   Homie.setSetupFunction(setupHandler).setLoopFunction(loopHandler);
   // Homie.setResetTrigger(PIN_BUTTON, LOW, 5000);
 
   pumpControlNode.advertise("alert");  // Report problem asserted and deasserted
   pumpControlNode.advertise("pump");   // Report pump is on and off
-  // pumpControlNode.advertise("power");  // Report power is available or not    // TODO: Remove. No need battery sensing.
   pumpControlNode.advertise("relay").settable(relayHandler);  // Report relay is on and off
-  pumpControlNode.advertise("distance-threshold").settable(distanceHandler);  // Report relay is on and off
+  pumpControlNode.advertise("install-mode").settable(installModeHandler);  // Report distance faster
+  pumpControlNode.advertise("distance-threshold").settable(distanceHandler);  // Set threshold for 'close water' alert
   pumpControlNode.advertise("distance");  // Report distance to water
 
   Homie.setup();
