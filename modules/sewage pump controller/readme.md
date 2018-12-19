@@ -14,6 +14,7 @@ Couple of times my basement had suffered from ... well... sewage overflow due to
 - The water limit lever can be adjusted via MQTT.
 - The pump can be disabled remotely: this is handy for maintenance.
 - The pump can be disabled by local button click: this is handy for maintenance.
+- Special "install-mode" allows to see the distance to water quickly in MQTT broker while installing the controller.
 - The UI is made over Node-RED (works with no UI too).
 - The circuit is equipped with surge protection, OVP, OCP, EMI features where needed.
 - The sketch is implemented with ESP8266/ESP8285 over [Homie framework](https://github.com/marvinroger/homie-esp8266).
@@ -79,3 +80,12 @@ You can set a minimal distance of water level (limit) to trigger the alert:
 ```
 mosquitto_pub -t homie/pump/pump/distance-threshold/set -m '60'
 ```
+
+You can enable install mode. It allows you to see the distance to water quickly in MQTT broker while installing the controller:
+```
+mosquitto_pub -t homie/pump/pump/install-mode/set -m 'true'
+```
+To exit the install mode and switch back to notmal mode you can do one of following:
+1. Send `false` argument to the controller.
+2. Power cycle the controller.
+3. Click `Reset` hardware button.
