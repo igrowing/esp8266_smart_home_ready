@@ -61,6 +61,10 @@ On Rules#Timer=3 do
  timerSet,3,3600
 endon
 
+On enable do  // On/off scheduler via MQTT
+   taskvalueset,6,2,%eventvalue%
+endon
+
 On System#Boot do    //When the ESP boots, do
  publish,shm/%sysname%/ip,%ip%
  publish,shm/%sysname%/mac,%mac%
