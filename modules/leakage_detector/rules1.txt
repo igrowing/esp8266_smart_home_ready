@@ -20,10 +20,10 @@ on LowBattery do
  publish,shm/%sysname%/status,LowBattery
  notify 2
  if [dbg#act_low]=0
-  publish,shm/%sysname%/status,dbg_mode_skip_deepsleep
+  publish,shm/%sysname%/status,mfg_mode_skip_deepsleep
  else
   publish,shm/%sysname%/status,deepsleep
-  deepsleep
+  deepsleep,4000
  endif
 endon
 
@@ -31,9 +31,9 @@ on Leakage do
   publish,shm/%sysname%/alert,Leakage
   notify 1
   if [dbg#act_low]=0
-   publish,shm/%sysname%/status,dbg_mode_skip_poweroff
+   publish,shm/%sysname%/status,mfg_mode_skip_poweroff
   else
-   publish,shm/%sysname%/status,poweroff
-   GPIO,12,0
+   publish,shm/%sysname%/status,deepsleep_restart_detector
+   deepsleep,4000
   endif
 endon
