@@ -6,7 +6,7 @@ Couple of times my basement had suffered from ... well... sewage overflow due to
 
 ## Features
 
-![PCB assembly](https://github.com/igrowing/esp8266_smart_home/blob/master/modules/sewage%20pump%20controller/pump_controller_assy.jpg?raw=true "PCB Assembly of Sewage Pump Controller")
+![PCB assembly](pump_controller_assy.jpg "PCB Assembly of Sewage Pump Controller")
 
 - Monitors level of water. When the level rises to the limit and not flushed by the pump, it sends me alert. Then i have day or two to replace the pump.
 - Monitors pump work. If it works too long time (>5min in a row), it disables the pump for cooling for 10 minutes and sends me alert: this means the pump doesn't really flush.
@@ -19,7 +19,7 @@ Couple of times my basement had suffered from ... well... sewage overflow due to
 - The circuit is equipped with surge protection, OVP, OCP, EMI features where needed.
 - The sketch is implemented with ESP8266/ESP8285 over [Homie framework](https://github.com/marvinroger/homie-esp8266).
 
-![Node-RED flow](https://github.com/igrowing/esp8266_smart_home/blob/master/modules/sewage%20pump%20controller/nr_flow.jpg?raw=true "Node-RED flow for Sewage Pump Controller")
+![Node-RED flow](nr_flow.jpg "Node-RED flow for Sewage Pump Controller")
 
 ## Crucial mechanical design change
 IMPORTANT! Originally, the distance meter module JSN-SR04T v.2.0 is planned to be mounted on the main PCB. It found to be sensitive, possible influenced from switching PSU. At the original placement the JSN-SR04T always returned minimal and not usable values. I tried to resolve the problem electronically by adding filters. Dozen variants tried. Only phisical distance from the mainboard solved the problem.
