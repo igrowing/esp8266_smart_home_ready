@@ -200,13 +200,13 @@ void alertPump() {
   // Turn pump on after cooling. If still broken it will start current-alerting flow again.
   relayTimer.once(PUMP_COOLTIME, setRelay, true);
   if (Homie.isConnected()) {
-    pumpControlNode.setProperty("alert").send("Pump is on for long time");
+    pumpControlNode.setProperty("alert").setRetained(false).send("Pump is on for long time");
   } else pumpAlertTimer.once(60.0, alertPump);
 }
 
 void alertDistance() {
   if (Homie.isConnected() && !distance_alert_reported) {
-    pumpControlNode.setProperty("alert").send("Distance is closer than " + String(dist_trsh) + "cm");
+    pumpControlNode.setProperty("alert").setRetained(false).send("Distance is closer than " + String(dist_trsh) + "cm");
     distance_alert_reported = true;
   } else {
     distance_alert_reported = false;
