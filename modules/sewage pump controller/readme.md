@@ -21,6 +21,10 @@ Couple of times my basement had suffered from ... well... sewage overflow due to
 
 ![Node-RED flow](https://github.com/igrowing/esp8266_smart_home/blob/master/modules/sewage%20pump%20controller/nr_flow.jpg?raw=true "Node-RED flow for Sewage Pump Controller")
 
+## Crucial mechanical design change
+IMPORTANT! Originally, the distance meter module JSN-SR04T v.2.0 is planned to be mounted on the main PCB. It found to be sensitive, possible influenced from switching PSU. At the original placement the JSN-SR04T always returned minimal and not usable values. I tried to resolve the problem electronically by adding filters. Dozen variants tried. Only phisical distance from the mainboard solved the problem.
+
+So, thinking out of the box _literally_, I placed the JSN-SR04T in separated waterproof box in the sewage pit. It's about 3m cable between the JSN-SR04T and the mainboard. Use reasonably shielded cable with 4 wires and ground the shield well.
 
 ## Initialization
 Once the firmware is uploaded and the module is powered on, the Homie-xxxxxx AP will appear. It might take a minute or two if you use brand new ESP8266 with unwritten Flash. Homie will format the SPIFFS first.
