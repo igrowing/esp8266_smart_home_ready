@@ -5,6 +5,7 @@
 #define PIN_RELAY   14
 #define PIN_BUTTON  0
 #define CLEARED     -10
+#define PASS_COUNT  10
 const String PREFIX = "/state";
 
 // Get status by index: request * 1 + v_sense * 2 + c_sence * 4
@@ -62,7 +63,7 @@ void disableInterrupts() {
 void setRelay(const bool on) {
   relayState = on;
   digitalWrite(PIN_RELAY, on ? HIGH : LOW);
-  lightNode.setProperty("on").send(on ? "true" : "false");
+  lightNode.setProperty("on").setRetained(false).send(on ? "true" : "false");
   Homie.getLogger() << "Light is " << (on ? "on" : "off") << endl;
   // Prepare counters, make checkStatus reporting change immediately
   vSenseIntCnt = 0;
@@ -103,24 +104,21 @@ void checkStatus() {
   // Don't waste resources if no measures ready.
   if (!isInterruptEnabled && lastStatus != CLEARED) return;
 
-  if (vSenseIntCnt < 10 || cSenseIntCnt < 10) {
-    // Let to Interrupts 100ms to count something. Non-blocking wait.
-    ulong ts = millis();
-    while (millis() - ts < 150);
+  int r = (relayState) ? 1 : 0;
+  int v = (vSenseIntCnt>PASS_COUNT) ? 2 : 0;
+  int c = (cSenseIntCnt>PASS_COUNT) ? 4 : 0;  // Filter noise: can be few inductive pulses.
+  if ((v && c) || (millis() - ists) > 5000) {
+    disableInterrupts();  // Pause if got measurements or waited too long time (60 sec)
+  } else {
+    // Don't waste resources if not reached certain reporting level or waiting too long.
+    return;
   }
 
-  int r = (relayState) ? 1 : 0;
-  int v = (vSenseIntCnt) ? 2 : 0;
-  int c = (cSenseIntCnt>10) ? 4 : 0;  // Filter noise: can be few inductive pulses.
-  if (v+c || ists > 60000) {
-    disableInterrupts();  // Pause if got measurements or waited too long time (60 sec)
-  }
-  
   if (lastStatus != r+v+c) {
     lastStatus = r+v+c;
-    lightNode.setProperty("voltage").send(v ? "true" : "false");
-    lightNode.setProperty("current").send(c ? "true" : "false");
-    lightNode.setProperty("status").send(sw_statuses[lastStatus]);
+    lightNode.setProperty("voltage").setRetained(false).send(v ? "true" : "false");
+    lightNode.setProperty("current").setRetained(false).send(c ? "true" : "false");
+    lightNode.setProperty("status").setRetained(false).send(sw_statuses[lastStatus] + ",c=" + String(cSenseIntCnt) + ",v=" + String(vSenseIntCnt));
     Homie.getLogger() << "Status is " << (sw_statuses[lastStatus]) << endl;
   }
 }
@@ -173,7 +171,6 @@ void writeState() {
   // Write global file name. File name format: /stateX_N, where X is 0 or 1, N is sequential number.
   File f = SPIFFS.open(PREFIX + (relayState?"1":"0") + "_" + String(lastFileIndex), "w");
   f.close();
-  // debugReport();
 }
 
 int readState() {
@@ -207,7 +204,7 @@ void setup() {
   // pinMode(PIN_BUTTON, INPUT_PULLUP);
   // debouncer.attach(PIN_BUTTON);
   // debouncer.interval(20);
-  Homie_setFirmware("awesome-relay", "1.1.0");
+  Homie_setFirmware("awesome-relay", "1.1.2");
   // Homie_setBrand("shm");  // homie ???
   Homie.setResetTrigger(PIN_BUTTON, LOW, 5000);
 
