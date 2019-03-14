@@ -18,7 +18,17 @@ Therefore, module should initiate itself on the server (register) and request up
 
 This is what this project about.
 
-## Implementation
+## Active parts
+- [Room sensor](https://github.com/igrowing/esp8266_smart_home_ready/tree/master/modules/room_sensor) based on ESP-easy.
+- [Room sensor](https://github.com/igrowing/esp8266_smart_home_ready/tree/master/modules/room%20sensor%20v2) based on Homie IoT.
+- [Leakage detector, door/window sensor, remote bell button, etc.](https://github.com/igrowing/esp8266_smart_home_ready/tree/master/modules/leakage_detector) based on ESP-easy.
+- [Remote light switch](https://github.com/igrowing/esp8266_smart_home_ready/tree/master/modules/remote%20light%20switch) based on Homie IoT.
+- [Sewage pump controller](https://github.com/igrowing/esp8266_smart_home_ready/tree/master/modules/sewage%20pump%20controller) based on Homie IoT.
+- [Garden sensor](https://github.com/igrowing/esp8266_smart_home_ready/tree/master/modules/garden_sensor) based on ESP-easy.
+
+
+## Abandoned part
+### Implementation
 **ESP8266 side:** Lua files to be uploaded to the module during "manufacturing" process.
 
 **Server side:** The server files to be installed (copied) to the local server during initial installation process.
