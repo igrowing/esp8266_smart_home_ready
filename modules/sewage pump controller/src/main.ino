@@ -67,7 +67,7 @@ bool storeVariable(char *name, uint32_t val) {
   File file = SPIFFS.open(PREFIX_VAR + String(name), "w");
   // TODO: Add free space validation like in writeState
   if (!file.print(String(val))) {
-    pumpControlNode.setProperty("alert").send("Failed to write variable to SPIFFS: " + String(name) + "=" + String(val));
+    pumpControlNode.setProperty("alert").setRetained(false).send("Failed to write variable to SPIFFS: " + String(name) + "=" + String(val));
     return false;
   } else {
     return true;
@@ -110,20 +110,9 @@ void runAdc() {
 }
 
 void read_distance() {
-  // put a 3MOhm restist between the pin 4 and 9 from the U1 EM78P153S Controller, now it works!
-
-  // digitalWrite(PIN_ECHO, LOW);
-  // long ts = millis();
-  // while (millis() - ts < 100) delayMicroseconds(100);
-  // pinMode(PIN_ECHO, INPUT);    
   digitalWrite(PIN_TRIGGER, HIGH);
   delayMicroseconds(15);
-  // Homie.getLogger() << "ECHO:" << String(digitalRead(PIN_ECHO)) << endl;
-  // pumpControlNode.setProperty("distance-temp").send(String(digitalRead(PIN_ECHO)));
   digitalWrite(PIN_TRIGGER, LOW);
-  // delayMicroseconds(10);
-  // // Homie.getLogger() << "ECHO:" << String(digitalRead(PIN_ECHO)) << endl; 
-  // pumpControlNode.setProperty("distance-temp").send(String(digitalRead(PIN_ECHO)));
 
   long duration = pulseIn(PIN_ECHO, HIGH, 10000);
   float distance = duration / 58.2;   // calibrate here
@@ -135,7 +124,7 @@ void setRelay(const bool on) {
   // Active low relay requires logic inversion.
   bool r = !on;
   digitalWrite(PIN_RELAY, r ? LOW : HIGH);
-  pumpControlNode.setProperty("relay").send(r ? "true" : "false");
+  pumpControlNode.setProperty("relay").setRetained(false).send(r ? "true" : "false");
   Homie.getLogger() << "Relay is " << (r ? "on" : "off") << endl;
 }
 
@@ -150,7 +139,7 @@ void toggleRelay() {
  *   DO NOT use underscore _ in MQTT topics and properties. (Can use in messages thus).
  ******************************************************************************************/
 void reportRelayStatus() {
-  pumpControlNode.setProperty("relay").send(digitalRead(PIN_RELAY) ? "false" : "true");
+  pumpControlNode.setProperty("relay").setRetained(false).send(digitalRead(PIN_RELAY) ? "false" : "true");
 }
 
 // homie/pump/pump/relay/set true
@@ -183,13 +172,13 @@ bool installModeHandler(const HomieRange& range, const String& value) {
 bool distanceHandler(const HomieRange& range, const String& value) {
   int val = atoi(value.c_str());
   if (val < 20 || val > 200) {
-    pumpControlNode.setProperty("alert").send("Invalid value for distance-threshold:" + String(value) + ". Valid: 20-200.");
+    pumpControlNode.setProperty("alert").setRetained(false).send("Invalid value for distance-threshold:" + String(value) + ". Valid: 20-200.");
     return false;
   }
 
   dist_trsh = val;
   storeVariable("dist_trsh", dist_trsh); 
-  pumpControlNode.setProperty("distance-threshold").send(String(dist_trsh));  // ack back
+  pumpControlNode.setProperty("distance-threshold").setRetained(false).send(String(dist_trsh));  // ack back
   return true;
 }
  
@@ -206,7 +195,7 @@ void alertPump() {
 
 void alertDistance() {
   if (Homie.isConnected() && !distance_alert_reported) {
-    pumpControlNode.setProperty("alert").setRetained(false).send("Distance is closer than " + String(dist_trsh) + "cm");
+    pumpControlNode.setProperty("alert").send("Distance is closer than " + String(dist_trsh) + "cm");
     distance_alert_reported = true;
   } else {
     distance_alert_reported = false;
@@ -221,11 +210,13 @@ void setupHandler() {
   // Serial.println();
   // If no interval stored yet, keep a default value. Else restore from Flash.
   dist_trsh = (restoreVariable("dist_trsh") == ERR_NUM)?dist_trsh:restoreVariable("dist_trsh");
-  pumpControlNode.setProperty("distance-threshold").send(String(dist_trsh));  // Inform UI about initial threshold.
+  pumpControlNode.setProperty("distance-threshold").setRetained(false).send(String(dist_trsh));  // Inform UI about initial threshold.
 
   distanceTimer.attach(60.0, read_distance);      // Start reading distance.
   adcTimer.once(30.0, runAdc);                    // Let some time to calm down after boot.
   pumpAlertTimer.once(20.0, reportRelayStatus);   // Inform UI about initial relay status.
+  // TODO: find better place/logic to clean alert in loop, not in setup.
+  pumpControlNode.setProperty("alert").setRetained(false).send("booted");  // Clean retained alerts on MQTT broker
 }
 
 void loopHandler() {
@@ -248,14 +239,14 @@ void loopHandler() {
     // Send status only once on pump change. Set timer to alert after timeout if pump is not off.
     if (current > RMS_ON_TRSH) {
       if (!pump_on_reported) {
-        pumpControlNode.setProperty("pump").send("on. Current =" + f2str((float)(current / 1000.0), 1) + " A");
+        pumpControlNode.setProperty("pump").setRetained(false).send("on. Current =" + f2str((float)(current / 1000.0), 1) + " A");
         pump_on_reported = true;
         pump_off_reported = false;
         pumpAlertTimer.once(PUMP_ON_TIMEOUT, alertPump);  // Either send alert or timer will off by pump off.
       }
     } else {
       if (!pump_off_reported) {
-        pumpControlNode.setProperty("pump").send("off");
+        pumpControlNode.setProperty("pump").setRetained(false).send("off");
         pump_on_reported = false;
         pump_off_reported = true;
         pumpAlertTimer.detach();
@@ -268,7 +259,7 @@ void loopHandler() {
     // Reset counters after reading, start from beginning.
     dist_agg = RESET_DIST;
     dist_cnt = RESET_DIST;
-    pumpControlNode.setProperty("distance").send(String(distance) + " cm");
+    pumpControlNode.setProperty("distance").setRetained(false).send(String(distance) + " cm");
     if (distance < dist_trsh) { 
       if (!distance_alert_reported || distanceAlertTimer.active()) {
         alertDistance();
@@ -287,7 +278,7 @@ void setup() {
   pinMode(PIN_ECHO, INPUT);
   digitalWrite(PIN_RELAY, HIGH);
 
-  Homie_setFirmware("pump-control", "1.0.3");
+  Homie_setFirmware("pump-control", "1.0.4");
 
   Homie.setSetupFunction(setupHandler).setLoopFunction(loopHandler);
   // Homie.setResetTrigger(PIN_BUTTON, LOW, 5000);
