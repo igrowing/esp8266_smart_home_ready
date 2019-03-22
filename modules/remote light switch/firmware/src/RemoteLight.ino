@@ -143,10 +143,9 @@ void debugReport() {
   uint32_t cnt = 0;
   Dir dir = SPIFFS.openDir(PREFIX);
   while (dir.next()) {
-    // str += dir.fileName() + "; ";
     cnt++;
   }
-  lightNode.setProperty("status").send("Free=" + String(freeBytes) + ", Files: " + String(cnt));
+  lightNode.setProperty("status").setRetained(false).send("Free=" + String(freeBytes) + ", Files: " + String(cnt));
 }
 
 void writeState() {
@@ -162,7 +161,7 @@ void writeState() {
     while (dir.next()) {
       SPIFFS.remove(dir.fileName());
     }
-    lightNode.setProperty("status").send("Flash cleaned");
+    lightNode.setProperty("status").setRetained(false).send("Flash cleaned");
   } else {
     // Increment global file name
     lastFileIndex++;
@@ -204,7 +203,7 @@ void setup() {
   // pinMode(PIN_BUTTON, INPUT_PULLUP);
   // debouncer.attach(PIN_BUTTON);
   // debouncer.interval(20);
-  Homie_setFirmware("awesome-relay", "1.1.2");
+  Homie_setFirmware("awesome-relay", "1.1.3");
   // Homie_setBrand("shm");  // homie ???
   Homie.setResetTrigger(PIN_BUTTON, LOW, 5000);
 
