@@ -1,0 +1,657 @@
+[
+    {
+        "id": "5a2e8625.184fe8",
+        "type": "mqtt out",
+        "z": "669e4b2e.c077d4",
+        "name": "outlet toogle",
+        "topic": "",
+        "qos": "0",
+        "retain": "false",
+        "broker": "2bd2afca.e962e",
+        "x": 850,
+        "y": 1900,
+        "wires": []
+    },
+    {
+        "id": "fa117df0.cf5c8",
+        "type": "ui_switch",
+        "z": "669e4b2e.c077d4",
+        "name": "",
+        "label": "Enable Schedule",
+        "group": "2159562f.247ffa",
+        "order": 5,
+        "width": "4",
+        "height": "1",
+        "passthru": true,
+        "decouple": "false",
+        "topic": "",
+        "style": "",
+        "onvalue": "suspended false",
+        "onvalueType": "str",
+        "onicon": "",
+        "oncolor": "",
+        "offvalue": "suspended true",
+        "offvalueType": "str",
+        "officon": "",
+        "offcolor": "",
+        "x": 330,
+        "y": 1800,
+        "wires": [
+            [
+                "ec78d5ca.a13238",
+                "c3ebd117.bb4f4"
+            ]
+        ]
+    },
+    {
+        "id": "27d7b110.a85e3e",
+        "type": "ui_slider",
+        "z": "669e4b2e.c077d4",
+        "name": "",
+        "label": "Off in {{ value }} min",
+        "group": "2159562f.247ffa",
+        "order": 1,
+        "width": "0",
+        "height": "0",
+        "passthru": true,
+        "topic": "",
+        "min": 0,
+        "max": "360",
+        "step": 1,
+        "x": 590,
+        "y": 1840,
+        "wires": [
+            [
+                "9f933f7f.651bd"
+            ]
+        ]
+    },
+    {
+        "id": "8e683ca7.ced52",
+        "type": "ui_switch",
+        "z": "669e4b2e.c077d4",
+        "name": "",
+        "label": "Light",
+        "group": "2159562f.247ffa",
+        "order": 3,
+        "width": "3",
+        "height": "1",
+        "passthru": false,
+        "decouple": "true",
+        "topic": "homie/living-room/power/on/set",
+        "style": "",
+        "onvalue": "on",
+        "onvalueType": "str",
+        "onicon": "",
+        "oncolor": "",
+        "offvalue": "off",
+        "offvalueType": "str",
+        "officon": "",
+        "offcolor": "",
+        "x": 130,
+        "y": 1940,
+        "wires": [
+            [
+                "72af4fb6.ae7e7"
+            ]
+        ]
+    },
+    {
+        "id": "72af4fb6.ae7e7",
+        "type": "function",
+        "z": "669e4b2e.c077d4",
+        "name": "parse_timeout",
+        "func": "// Outputs:\n// Counter_to_display, GPIO control via BigTimer, Counter_to_process\n\n// This beautiful expression doesn't work, gets default 10 always.\n// var delay = typeof(context.get('get_bedroom_timeout') == undefined) ? 10 : flow.get('get_bedroom_timeout');\n// This ugly construction works. :(\ntry{\n    var delay = flow.get('germinator_timeout');\n} catch (er) {\n    var delay = 10;\n}\n\nvar state = context.get('state') || 'ignore';\nvar topic = context.get('topic') || msg.topic;\ncontext.set('topic', topic);\ntopic = context.get('topic');\nnode.status({fill:\"yellow\",shape:\"ring\",text: delay+','+state+','+msg.payload});\n\n// Block loop of messages when off\nif ('off' == msg.payload && 'off' == state) return [null, null, null];\nnode.status({fill:\"yellow\",shape:\"dot\",text: delay+','+state+','+msg.payload});\n\n// Keep msg for next round\nif ('on' == msg.payload) {\n    // Don't count/display if fully manual\n    var m1 = (delay > 0) ? {payload: delay} : null; \n    // Set delay, start countdown, on load\n    context.set('state', 'on');\n    node.status({fill:\"green\", shape:\"dot\", text: delay+','+context.get('state')+','+msg.payload});\n    return [m1, msg, m1];  \n} else if (('off' == msg.payload) || (parseInt(msg.payload) <= 1)) {\n    // off load, reset clear counter\n    context.set('state', 'off');\n    node.status({fill:\"red\",shape:\"dot\",text: delay+','+context.get('state')+','+msg.payload});\n    return [{payload: ' '}, {payload: 'off', topic: topic}, null];\n} else if (parseInt(msg.payload) > 1 && context.get('state') == 'on') {\n    // decrement countdown\n    var m1 = {payload: parseInt(msg.payload)-1};\n    node.status({fill:\"blue\",shape:\"dot\",text: delay+'>'+m1.payload+','+state+','+msg.payload});\n    return [m1, null, m1];\n}\n\n// Unexpected state: look for a bug in reached here.\nnode.status({fill:\"grey\",shape:\"ring\",text: delay+','+state+','+msg.payload+'???'});\nreturn [{payload: ' '}, {payload: 'off', topic: topic}, null];\n",
+        "outputs": 3,
+        "noerr": 0,
+        "x": 160,
+        "y": 2000,
+        "wires": [
+            [
+                "b81165a.89d4898"
+            ],
+            [
+                "8e683ca7.ced52",
+                "c3ebd117.bb4f4"
+            ],
+            [
+                "ddd82f71.d36d8"
+            ]
+        ]
+    },
+    {
+        "id": "52be375d.9fb628",
+        "type": "debug",
+        "z": "669e4b2e.c077d4",
+        "name": "germinator_log",
+        "active": true,
+        "tosidebar": true,
+        "console": true,
+        "tostatus": false,
+        "complete": "payload",
+        "x": 830,
+        "y": 1960,
+        "wires": []
+    },
+    {
+        "id": "9f933f7f.651bd",
+        "type": "function",
+        "z": "669e4b2e.c077d4",
+        "name": "UI_to_flow_context",
+        "func": "flow.set(\"germinator_timeout\", msg.payload);\nreturn null;",
+        "outputs": 1,
+        "noerr": 0,
+        "x": 770,
+        "y": 1840,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "fa93806f.834a7",
+        "type": "inject",
+        "z": "669e4b2e.c077d4",
+        "name": "",
+        "topic": "",
+        "payload": "10",
+        "payloadType": "num",
+        "repeat": "",
+        "crontab": "",
+        "once": true,
+        "onceDelay": 0.1,
+        "x": 490,
+        "y": 1900,
+        "wires": [
+            [
+                "27d7b110.a85e3e"
+            ]
+        ]
+    },
+    {
+        "id": "ddd82f71.d36d8",
+        "type": "trigger",
+        "z": "669e4b2e.c077d4",
+        "op1": "",
+        "op2": "",
+        "op1type": "nul",
+        "op2type": "pay",
+        "duration": "1",
+        "extend": false,
+        "units": "min",
+        "reset": "",
+        "bytopic": "all",
+        "name": "",
+        "x": 210,
+        "y": 2060,
+        "wires": [
+            [
+                "72af4fb6.ae7e7"
+            ]
+        ]
+    },
+    {
+        "id": "b81165a.89d4898",
+        "type": "ui_text",
+        "z": "669e4b2e.c077d4",
+        "group": "2159562f.247ffa",
+        "order": 4,
+        "width": "1",
+        "height": "1",
+        "name": "counter",
+        "label": "",
+        "format": "{{msg.payload}}",
+        "layout": "row-left",
+        "x": 340,
+        "y": 1940,
+        "wires": []
+    },
+    {
+        "id": "7831b95d.59a4f8",
+        "type": "change",
+        "z": "669e4b2e.c077d4",
+        "name": "mqtt2switch",
+        "rules": [
+            {
+                "t": "change",
+                "p": "payload",
+                "pt": "msg",
+                "from": "false",
+                "fromt": "str",
+                "to": "off",
+                "tot": "str"
+            },
+            {
+                "t": "change",
+                "p": "payload",
+                "pt": "msg",
+                "from": "true",
+                "fromt": "str",
+                "to": "on",
+                "tot": "str"
+            }
+        ],
+        "action": "",
+        "property": "",
+        "from": "",
+        "to": "",
+        "reg": false,
+        "x": 230,
+        "y": 1900,
+        "wires": [
+            [
+                "8e683ca7.ced52",
+                "659e827b.b6423c"
+            ]
+        ]
+    },
+    {
+        "id": "202b50a8.17617",
+        "type": "change",
+        "z": "669e4b2e.c077d4",
+        "name": "switch2mqtt",
+        "rules": [
+            {
+                "t": "change",
+                "p": "payload",
+                "pt": "msg",
+                "from": "off",
+                "fromt": "str",
+                "to": "false",
+                "tot": "str"
+            },
+            {
+                "t": "change",
+                "p": "payload",
+                "pt": "msg",
+                "from": "on",
+                "fromt": "str",
+                "to": "true",
+                "tot": "str"
+            }
+        ],
+        "action": "",
+        "property": "",
+        "from": "",
+        "to": "",
+        "reg": false,
+        "x": 670,
+        "y": 1900,
+        "wires": [
+            [
+                "5a2e8625.184fe8"
+            ]
+        ]
+    },
+    {
+        "id": "e3a4fd77.98cc1",
+        "type": "mqtt in",
+        "z": "669e4b2e.c077d4",
+        "name": "Germinator_relay",
+        "topic": "homie/rls-01/light/on",
+        "qos": "2",
+        "broker": "2bd2afca.e962e",
+        "x": 100,
+        "y": 1860,
+        "wires": [
+            [
+                "7831b95d.59a4f8"
+            ]
+        ]
+    },
+    {
+        "id": "900be1dd.897f",
+        "type": "ui_chart",
+        "z": "669e4b2e.c077d4",
+        "name": "",
+        "group": "2159562f.247ffa",
+        "order": 6,
+        "width": "6",
+        "height": "2",
+        "label": "",
+        "chartType": "line",
+        "legend": "false",
+        "xformat": "dd HH:mm",
+        "interpolate": "step",
+        "nodata": "No data",
+        "dot": false,
+        "ymin": "",
+        "ymax": "",
+        "removeOlder": "3",
+        "removeOlderPoints": "",
+        "removeOlderUnit": "86400",
+        "cutout": 0,
+        "useOneColor": false,
+        "colors": [
+            "#1f77b4",
+            "#aec7e8",
+            "#ff7f0e",
+            "#2ca02c",
+            "#98df8a",
+            "#d62728",
+            "#ff9896",
+            "#9467bd",
+            "#c5b0d5"
+        ],
+        "useOldStyle": false,
+        "x": 750,
+        "y": 2080,
+        "wires": [
+            [
+                "5c661b.e87329e4"
+            ],
+            []
+        ]
+    },
+    {
+        "id": "5c661b.e87329e4",
+        "type": "persist in",
+        "z": "669e4b2e.c077d4",
+        "name": "germinator_status",
+        "storageNode": "cca41d41.2dfee",
+        "x": 910,
+        "y": 2080,
+        "wires": []
+    },
+    {
+        "id": "db6ada96.9ec018",
+        "type": "persist out",
+        "z": "669e4b2e.c077d4",
+        "name": "germinator_status",
+        "storageNode": "cca41d41.2dfee",
+        "x": 590,
+        "y": 2080,
+        "wires": [
+            [
+                "900be1dd.897f"
+            ]
+        ]
+    },
+    {
+        "id": "a9666fd9.d1e7a",
+        "type": "trigger",
+        "z": "669e4b2e.c077d4",
+        "op1": "",
+        "op2": "",
+        "op1type": "nul",
+        "op2type": "pay",
+        "duration": "2",
+        "extend": false,
+        "units": "s",
+        "reset": "",
+        "bytopic": "all",
+        "name": "2sec delay",
+        "x": 590,
+        "y": 1960,
+        "wires": [
+            [
+                "202b50a8.17617",
+                "52be375d.9fb628"
+            ]
+        ]
+    },
+    {
+        "id": "ec78d5ca.a13238",
+        "type": "persist in",
+        "z": "669e4b2e.c077d4",
+        "name": "germinator_enable",
+        "storageNode": "80140e51.cd2ed",
+        "x": 560,
+        "y": 1800,
+        "wires": []
+    },
+    {
+        "id": "b46b8bf0.e1bae8",
+        "type": "persist out",
+        "z": "669e4b2e.c077d4",
+        "name": "germinator_enable",
+        "storageNode": "80140e51.cd2ed",
+        "x": 130,
+        "y": 1800,
+        "wires": [
+            [
+                "fa117df0.cf5c8"
+            ]
+        ]
+    },
+    {
+        "id": "659e827b.b6423c",
+        "type": "function",
+        "z": "669e4b2e.c077d4",
+        "name": "msg2digit",
+        "func": "var old = msg.payload;\nnode.status({text: old + '???'});\nif (msg.payload == null) return;\n\nif (msg.payload === true || \n    msg.payload.toLowerCase() == '1' || \n    msg.payload.toLowerCase() == 'open' || \n    msg.payload.toLowerCase() == 'on' ||\n    parseInt(msg.payload) > 0) { msg.payload = 1 }\n    else if (msg.payload === false || \n        msg.payload.toLowerCase() == '0' || \n        msg.payload.toLowerCase() == 'close' || \n        msg.payload.toLowerCase() == 'off' ||\n        parseInt(msg.payload) <= 0) { msg.payload = 0 }\n        else return;\n\nnode.status({text: old + \">>\" + msg.payload});\n\ntry{\n    // Get 1st word from the end of topic\n    msg.topic = msg.topic.split('/').slice(-1)[0].trim();\n} catch (er) {\n    node.status({text: 'Topic error'});\n    return null;\n}\nnode.status({text: msg.topic + '>>' + old + \",\" + msg.payload});\n\nreturn msg;",
+        "outputs": 1,
+        "noerr": 0,
+        "x": 640,
+        "y": 2000,
+        "wires": [
+            [
+                "900be1dd.897f"
+            ]
+        ]
+    },
+    {
+        "id": "c3ebd117.bb4f4",
+        "type": "schedex",
+        "z": "669e4b2e.c077d4",
+        "name": "germinator",
+        "suspended": false,
+        "lat": "32",
+        "lon": "34",
+        "ontime": "17:00",
+        "ontopic": "homie/rls-01/light/on/set",
+        "onpayload": "true",
+        "onoffset": "15",
+        "onrandomoffset": true,
+        "offtime": "23:45",
+        "offtopic": "homie/rls-01/light/on/set",
+        "offpayload": "false",
+        "offoffset": "14",
+        "offrandomoffset": true,
+        "mon": true,
+        "tue": true,
+        "wed": true,
+        "thu": true,
+        "fri": true,
+        "sat": true,
+        "sun": true,
+        "x": 390,
+        "y": 2000,
+        "wires": [
+            [
+                "a9666fd9.d1e7a",
+                "bb8e7f40.b88ea"
+            ]
+        ]
+    },
+    {
+        "id": "fd53f718.0edfd8",
+        "type": "comment",
+        "z": "669e4b2e.c077d4",
+        "name": "Germinator",
+        "info": "",
+        "x": 280,
+        "y": 1740,
+        "wires": []
+    },
+    {
+        "id": "c96f8f8b.6ca63",
+        "type": "mqtt in",
+        "z": "669e4b2e.c077d4",
+        "name": "Germinator#",
+        "topic": "homie/rls-01/#",
+        "qos": "2",
+        "broker": "2bd2afca.e962e",
+        "x": 110,
+        "y": 2100,
+        "wires": [
+            [
+                "3cf18469.c79dfc",
+                "443a33c.c8ba8cc"
+            ]
+        ]
+    },
+    {
+        "id": "3cf18469.c79dfc",
+        "type": "switch",
+        "z": "669e4b2e.c077d4",
+        "name": "Filter OK",
+        "property": "payload",
+        "propertyType": "msg",
+        "rules": [
+            {
+                "t": "cont",
+                "v": "Error",
+                "vt": "str"
+            }
+        ],
+        "checkall": "true",
+        "repair": false,
+        "outputs": 1,
+        "x": 320,
+        "y": 2100,
+        "wires": [
+            [
+                "3e8253b1.04f55c"
+            ]
+        ]
+    },
+    {
+        "id": "3e8253b1.04f55c",
+        "type": "link out",
+        "z": "669e4b2e.c077d4",
+        "name": "",
+        "links": [
+            "28f28203.c20d0e"
+        ],
+        "x": 435,
+        "y": 2100,
+        "wires": []
+    },
+    {
+        "id": "443a33c.c8ba8cc",
+        "type": "switch",
+        "z": "669e4b2e.c077d4",
+        "name": "",
+        "property": "topic",
+        "propertyType": "msg",
+        "rules": [
+            {
+                "t": "cont",
+                "v": "signal",
+                "vt": "str"
+            },
+            {
+                "t": "cont",
+                "v": "online",
+                "vt": "str"
+            }
+        ],
+        "checkall": "true",
+        "repair": false,
+        "outputs": 2,
+        "x": 310,
+        "y": 2140,
+        "wires": [
+            [
+                "8707ff57.e0ae1"
+            ],
+            [
+                "8707ff57.e0ae1"
+            ]
+        ]
+    },
+    {
+        "id": "8707ff57.e0ae1",
+        "type": "function",
+        "z": "669e4b2e.c077d4",
+        "name": "online_sanity",
+        "func": "var store = msg.topic.split('/').slice(0,2).join(\"_\");\nif (msg.topic.includes('online')) {\n    context.set(store, msg.payload);\n    node.status({text: \"online >>\" + context.get(store)});\n    return;\n}\n\nnode.status({text: \"online >>\" + context.get(store) + \", msg:\" + msg.payload});\n\nreturn (context.get(store) == 'true')?msg:{payload:0};     ",
+        "outputs": 1,
+        "noerr": 0,
+        "x": 530,
+        "y": 2140,
+        "wires": [
+            [
+                "ddffa3db.05a9d"
+            ]
+        ]
+    },
+    {
+        "id": "ddffa3db.05a9d",
+        "type": "ui_gauge",
+        "z": "669e4b2e.c077d4",
+        "name": "Wifi germinator",
+        "group": "2159562f.247ffa",
+        "order": 2,
+        "width": "2",
+        "height": "2",
+        "gtype": "gage",
+        "title": "Wifi",
+        "label": "%",
+        "format": "{{value}}",
+        "min": "0",
+        "max": "100",
+        "colors": [
+            "#ff0000",
+            "#e6e600",
+            "#00ff40"
+        ],
+        "seg1": "40",
+        "seg2": "70",
+        "x": 700,
+        "y": 2140,
+        "wires": []
+    },
+    {
+        "id": "2bd2afca.e962e",
+        "type": "mqtt-broker",
+        "z": "",
+        "name": "",
+        "broker": "localhost",
+        "port": "1883",
+        "clientid": "",
+        "usetls": false,
+        "compatmode": true,
+        "keepalive": "60",
+        "cleansession": true,
+        "birthTopic": "",
+        "birthQos": "0",
+        "birthPayload": "",
+        "willTopic": "",
+        "willQos": "0",
+        "willPayload": ""
+    },
+    {
+        "id": "2159562f.247ffa",
+        "type": "ui_group",
+        "z": "",
+        "name": "Germinator",
+        "tab": "fd92601d.1a632",
+        "order": 3,
+        "disp": true,
+        "width": "6",
+        "collapse": false
+    },
+    {
+        "id": "cca41d41.2dfee",
+        "type": "persist-store",
+        "z": "",
+        "filename": "germinator_status.json",
+        "interval": "7200"
+    },
+    {
+        "id": "80140e51.cd2ed",
+        "type": "persist-store",
+        "z": "",
+        "filename": "germinator_enable.json",
+        "interval": "7200"
+    },
+    {
+        "id": "fd92601d.1a632",
+        "type": "ui_tab",
+        "z": "",
+        "name": "Garden",
+        "icon": "local_florist",
+        "order": 2
+    }
+]
