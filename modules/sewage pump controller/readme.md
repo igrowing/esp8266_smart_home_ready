@@ -29,12 +29,11 @@ So, thinking out of the box _literally_, I placed the JSN-SR04T in separated wat
 ## Initialization
 Once the firmware is uploaded and the module is powered on, the Homie-xxxxxx AP will appear. It might take a minute or two if you use brand new ESP8266 with unwritten Flash. Homie will format the SPIFFS first.
 
-Open Homie init portal: http://marvinroger.github.io/homie-esp8266/configurators/v2/
-
-Switch your computer or cellphone to that Homie-AP.
-Look in the portal when the new device will be recognized. This takes 5-25 secs.
-Follow step-by-step on-screen instructions. DO NOT change the MQTT base name, leave it blank to avoid a bug in Homie. Allow OTA.
-Once the setup finished, switch back to your regular network: now you'll Homie reports in your MQTT broker.
+- Open Homie init portal: http://marvinroger.github.io/homie-esp8266/configurators/v2/
+- Switch your computer or cellphone to that Homie-AP.
+- Look in the portal when the new device will be recognized. This takes 5-25 secs.
+- Follow step-by-step on-screen instructions. DO NOT change the MQTT base name, leave it blank to avoid a bug in Homie. Allow OTA.
+- Once the setup finished, switch back to your regular network: now you'll Homie reports in your MQTT broker.
 
 ## MQTT usage
 ### Reporting from the Pump controller to MQTT broker
