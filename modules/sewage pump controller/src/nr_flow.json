@@ -79,8 +79,8 @@
                 "61a7f1f4.2f357"
             ],
             [
-                "c063f1a4.ae4f6",
-                "d4d2c8d8.bc5218"
+                "d4d2c8d8.bc5218",
+                "1e9f0d33.5b8db3"
             ],
             [
                 "262376a.dae3d8a"
@@ -126,8 +126,8 @@
         "z": "f1073339.c03c3",
         "name": "sewage_pump",
         "storageNode": "86967948.3d4758",
-        "x": 910,
-        "y": 880,
+        "x": 920,
+        "y": 920,
         "wires": []
     },
     {
@@ -227,8 +227,8 @@
             "#c5b0d5"
         ],
         "useOldStyle": false,
-        "x": 740,
-        "y": 920,
+        "x": 810,
+        "y": 880,
         "wires": [
             [
                 "28815061.3d278"
@@ -296,8 +296,8 @@
         "y": 940,
         "wires": [
             [
-                "c063f1a4.ae4f6",
-                "80e47b2e.55b1a8"
+                "80e47b2e.55b1a8",
+                "1e9f0d33.5b8db3"
             ]
         ]
     },
@@ -335,8 +335,8 @@
         "y": 980,
         "wires": [
             [
-                "c063f1a4.ae4f6",
-                "a93fda56.a6ac08"
+                "a93fda56.a6ac08",
+                "1e9f0d33.5b8db3"
             ]
         ]
     },
@@ -391,7 +391,7 @@
         "y": 900,
         "wires": [
             [
-                "c063f1a4.ae4f6"
+                "1e9f0d33.5b8db3"
             ]
         ]
     },
@@ -542,8 +542,8 @@
         "id": "d4d2c8d8.bc5218",
         "type": "function",
         "z": "f1073339.c03c3",
-        "name": "mux",
-        "func": "if (msg.topic.includes('online') && msg.payload == 'false') {\n    msg.topic = 'homie/pump/$stats/signal';\n    msg.payload = 0;\n}\nreturn msg;    ",
+        "name": "online_sanity",
+        "func": "var store = msg.topic.split('/').slice(0,2).join(\"_\");\nif (msg.topic.includes('online')) {\n    context.set(store, msg.payload);\n    node.status({text: \"online >>\" + context.get(store)});\n    return;\n}\n\nnode.status({text: \"online >>\" + context.get(store) + \", msg:\" + msg.payload});\n\nreturn (context.get(store) == 'true')?msg:{payload:0};     ",
         "outputs": 1,
         "noerr": 0,
         "x": 490,
@@ -558,8 +558,8 @@
         "id": "262376a.dae3d8a",
         "type": "function",
         "z": "f1073339.c03c3",
-        "name": "mux",
-        "func": "if (msg.topic.includes('online') && msg.payload == 'false') {\n    msg.topic = 'homie/pump/$stats/uptime';\n    msg.payload = 0;\n}\nreturn msg;    ",
+        "name": "online_sanity",
+        "func": "var store = msg.topic.split('/').slice(0,2).join(\"_\");\nif (msg.topic.includes('online')) {\n    context.set(store, msg.payload);\n    node.status({text: \"online >>\" + context.get(store)});\n    return;\n}\n\nnode.status({text: \"online >>\" + context.get(store) + \", msg:\" + msg.payload});\n\nreturn (context.get(store) == 'true')?msg:{payload:0};     ",
         "outputs": 1,
         "noerr": 0,
         "x": 490,
@@ -567,6 +567,22 @@
         "wires": [
             [
                 "7e2448cf.73b308"
+            ]
+        ]
+    },
+    {
+        "id": "1e9f0d33.5b8db3",
+        "type": "function",
+        "z": "f1073339.c03c3",
+        "name": "get_last_word_topic",
+        "func": "var old = msg.payload;\nif (msg.payload == null) return;\n\nnode.status({text: old + \">>\" + msg.payload});\n\ntry{\n    // Get last word of topic\n    msg.topic = msg.topic.split('/').slice(-1)[0];\n} catch (er) {\n    node.status({text: 'Topic error'});\n    return null;\n}\nnode.status({text: '>>' + msg.topic + \",\" + msg.payload});\n\nreturn msg;",
+        "outputs": 1,
+        "noerr": 0,
+        "x": 660,
+        "y": 920,
+        "wires": [
+            [
+                "c063f1a4.ae4f6"
             ]
         ]
     },
@@ -601,18 +617,18 @@
         "type": "ui_group",
         "z": "",
         "name": "Garden: sewage pump",
-        "tab": "531ef1f0.9a426",
-        "order": 6,
+        "tab": "fd92601d.1a632",
+        "order": 2,
         "disp": true,
         "width": "9",
         "collapse": false
     },
     {
-        "id": "531ef1f0.9a426",
+        "id": "fd92601d.1a632",
         "type": "ui_tab",
         "z": "",
-        "name": "MyDashboard",
-        "icon": "home",
-        "order": 1
+        "name": "Garden",
+        "icon": "local_florist",
+        "order": 2
     }
 ]
