@@ -76,8 +76,8 @@ All the examples use mosquitto package in Linux. Feel free use your own broker. 
 
 You can disable and enable the pump by following MQTT commands accordingly:
 ```
-mosquitto_pub -t homie/pump/pump/relay/set/set -m 'true'
-mosquitto_pub -t homie/pump/pump/relay/set/set -m 'false'
+mosquitto_pub -t homie/pump/pump/relay/set -m 'true'
+mosquitto_pub -t homie/pump/pump/relay/set -m 'false'
 ```
 
 You can set a minimal distance of water level (limit) to trigger the alert:
