@@ -22,12 +22,14 @@
 
 #define CLEARED     -10
 #define CLEARED_U   0
-#define EVOC_TRSH   100
+#define EVOC_TRSH   30
 #define PIR_REP_INTERVAL_MS 60000
 const String PREFIX = "/state";  // part of file name
 
 HomieNode roomNode("power", "switch");
 // Bounce debouncer = Bounce(); // Bounce is built into Homie, so you can use it without including it first
+volatile bool flag_air_alerted = false;
+volatile bool flag_error_reported = false;
 volatile uint32_t lastStatus_ts = CLEARED_U;
 volatile uint32_t status_interval_ms = 900000;  // Interval to send reports
 volatile uint32_t outlet_timer_s = 900;         // Interval to turn outlet on by long click
@@ -40,27 +42,16 @@ volatile float measure_temp = CLEARED;
 volatile float measure_humi = CLEARED;
 volatile float measure_press = CLEARED;
 volatile float measure_air = CLEARED;
+volatile float measure_quality = CLEARED;
 
 Ticker measureTimer;
 Ticker writeTimer;
 Ticker expTimer;
 Adafruit_BME680 bme;
-
-
-/********************************************************************************************
- * Hardware functions  -- process inputs and outputs.
- ********************************************************************************************/
-void handlePir() {
-  // turn LED on for 1 sec. Send report.
-  uint32_t start = millis();
-  digitalWrite(PIN_MY_LED, LOW);
-  if (millis() > lastPirStatus_ts + PIR_REP_INTERVAL_MS) {
-    lastPirStatus_ts = millis();
-    roomNode.setProperty("pir").send("Move detected");
-  }
-  while (millis() < start + 1000);
-  digitalWrite(PIN_MY_LED, HIGH);
-}
+#define BME_BURN_IN_TIME 300000  // msec. Reading every 5 sec => 60 readings for calibration.
+volatile float gas_base = 0.0;  // 0 -> not calibrated yet. !0 -> calibrated and can be calculated.
+const float HUM_BASE = 40.0;    // 40% is optimal indoor humidity.
+const uint8_t HUM_WEIGH = 25;   // air_quality_score (25:75, humidity:gas)
 
 #define BTN_UP          0
 #define BTN_CLICK       1
@@ -74,9 +65,32 @@ uint_fast8_t  btn_state = CLEARED_U;
 uint_fast32_t btn_click_time = 0;
 Ticker btnTimer;
 
+/********************************************************************************************
+ * Hardware functions  -- process inputs and outputs.
+ ********************************************************************************************/
+void blinkLED() {
+  // turn LED on for 0.1 sec.
+  uint32_t start = millis();
+  digitalWrite(PIN_MY_LED, LOW);
+  while (millis() < start + 100);
+  digitalWrite(PIN_MY_LED, HIGH);
+}
+
+void handlePir() {
+  // turn LED on for 1 sec. Send report.
+  uint32_t start = millis();
+  digitalWrite(PIN_MY_LED, LOW);
+  if (millis() > lastPirStatus_ts + PIR_REP_INTERVAL_MS) {
+    lastPirStatus_ts = millis();
+    roomNode.setProperty("pir").setRetained(false).send("Move detected");
+  }
+  while (millis() < start + 1000);
+  digitalWrite(PIN_MY_LED, HIGH);
+}
+
 void set1click() {
   btn_state = BTN_CLICK;
-  roomNode.setProperty("status").send("set1click ended with:" + String(btn_state));
+  roomNode.setProperty("status").setRetained(false).send("set1click ended with:" + String(btn_state));
 }
 
 void handleBtnDownInt() {
@@ -121,7 +135,7 @@ uint_fast8_t get_button_state() {
 void setRelay(const bool on) {
   relayState = on;
   digitalWrite(PIN_RELAY, on ? HIGH : LOW);  // Change control here if needed. Now it's active high.
-  roomNode.setProperty("on").send(on ? "true" : "false");
+  roomNode.setProperty("on").setRetained(false).send(on ? "true" : "false");
   Homie.getLogger() << "Outlet is " << (on ? "on" : "off") << endl;
   writeTimer.once(0.5, writeState);  // Write state to SPIFFS
 }
@@ -131,6 +145,7 @@ void toggleRelay() {
   setRelay(digitalRead(PIN_RELAY) != HIGH);                 // Change control here if needed. Now it's active high.
 }
 
+// Add measurements to aggregative variables. Calculate average in report time.
 void measure() {
   if (bme.performReading()) {
     if (measure_air == CLEARED) {
@@ -154,6 +169,44 @@ void measure() {
       measure_press += bme.pressure / 100.0;
     }
     measure_count++;
+  } else if (!flag_error_reported) {  // Report only once till next power cycle
+    roomNode.setProperty("status").send("Failed to read BME680");
+    Homie.getLogger() << "Failed to read BME680" << endl;
+    flag_error_reported = true;
+  }
+
+  // Calibrate gas sensor before any measurement.
+  if ((millis() > BME_BURN_IN_TIME) && (gas_base == 0.0)) {  // Got enough samples for calibration
+    gas_base = measure_air / measure_count;
+  }
+
+  if (gas_base != 0.0) {
+    float hum = bme.humidity;
+    float hum_offset = hum - HUM_BASE;
+    //  Calculate hum_score as the distance from the hum_baseline.
+    float hum_score = HUM_BASE + hum_offset;  // Calc score for negative offset first. Then overwrite if needed.
+    hum_score /= HUM_BASE;
+    if (hum_offset > 0) {
+      hum_score = 100 - HUM_BASE - hum_offset;
+      hum_score /= (100 - HUM_BASE);
+    }
+    hum_score *= HUM_WEIGH;
+
+    float gas = bme.gas_resistance / 1000.0;
+    float gas_offset = gas_base - gas;
+    //  Calculate gas_score as the distance from the gas_baseline.
+    float gas_score = 100 - HUM_WEIGH;
+    if (gas_offset > 0) {
+        gas_score = gas / gas_base;
+        gas_score *= (100 - HUM_WEIGH);
+    }
+
+    // Calculate air_quality_score.
+    if (measure_quality == CLEARED) {
+      measure_quality = hum_score + gas_score;
+    } else {
+      measure_quality += hum_score + gas_score;
+    }
   }
 }
 
@@ -199,20 +252,25 @@ void reportStatus() {
   }
 
   lastStatus_ts = millis();
-  if (! bme.performReading()) {
-    roomNode.setProperty("status").send("Failed to read BME680");
-    Homie.getLogger() << "Failed to read BME680" << endl;
-    return;
-  }
 
-  roomNode.setProperty("temperature").send(String(measure_temp / measure_count) + " *C");
-  roomNode.setProperty("humidity").send(String(measure_humi / measure_count) + " %");
-  roomNode.setProperty("pressure").send(String(measure_press / measure_count) + " hPa");
-  roomNode.setProperty("air").send(String(measure_air / measure_count) + " kOhm");
-
-  if (measure_air / measure_count > EVOC_TRSH) {
-    // TODO: implement function for LED blinking and additional report
-    ;
+  roomNode.setProperty("temperature").setRetained(false).send(String(measure_temp / measure_count) + " *C");
+  roomNode.setProperty("humidity").setRetained(false).send(String(measure_humi / measure_count) + " %");
+  roomNode.setProperty("pressure").setRetained(false).send(String(measure_press / measure_count) + " hPa");
+  roomNode.setProperty("air").setRetained(false).send(String(measure_air / measure_count) + " kOhm");
+  if (CLEARED != measure_quality) {
+    uint8_t q = (uint8_t) (measure_quality / measure_count);
+    roomNode.setProperty("quality").setRetained(false).send(String(q) + " %");
+    if (q < EVOC_TRSH) {
+      // LED blinking and additional report
+      if (!flag_air_alerted) {
+        roomNode.setProperty("status").setRetained(false).send("Alert: bad air quality " + String(q) + " %");
+        flag_air_alerted = true;
+      }
+      expTimer.attach(0.5, blinkLED);
+    } else {
+      if (expTimer.active()) expTimer.detach();
+      flag_air_alerted = false;
+    }
   }
 
   measure_count = CLEARED_U;
@@ -220,6 +278,7 @@ void reportStatus() {
   measure_humi = CLEARED;
   measure_press = CLEARED;
   measure_air = CLEARED;
+  measure_quality = CLEARED;
 }
 
 void debugReport() {
@@ -229,10 +288,7 @@ void debugReport() {
   String str = "";
   uint32_t cnt = 0;
   Dir dir = SPIFFS.openDir(PREFIX);
-  while (dir.next()) {
-    // str += dir.fileName() + "; ";
-    cnt++;
-  }
+  while (dir.next()) { cnt++; }
   roomNode.setProperty("status").send("Free=" + String(freeBytes) + ", Files: " + String(cnt));
 }
 
@@ -319,8 +375,8 @@ void loopHandler() {
     default: break;
   }
 
-  // Report status if just booted or timeout is ended
-  if (0 >= lastStatus_ts || millis() > lastStatus_ts + status_interval_ms) {
+  // Report status if just booted or timeout is ended and gas sensor is calibrated
+  if ((0 >= lastStatus_ts || millis() > lastStatus_ts + status_interval_ms) && gas_base > 0.0) {
     reportStatus();
   }
 }
@@ -344,7 +400,7 @@ void setup() {
   attachInterrupt(digitalPinToInterrupt(PIN_BUTTON), handleBtnDownInt, FALLING);
   attachInterrupt(digitalPinToInterrupt(PIN_PIR), handlePir, RISING);
 
-  Homie_setFirmware("room-sensor", "1.0.3");
+  Homie_setFirmware("room-sensor", "1.0.5");
   // Homie_setBrand("shm");  // homie ???
   // Homie.setResetTrigger(PIN_BUTTON, LOW, 5000);  // Standard 10sec
 
@@ -354,6 +410,7 @@ void setup() {
   roomNode.advertise("humidity");
   roomNode.advertise("pressure");
   roomNode.advertise("air");
+  roomNode.advertise("quality");
   roomNode.advertise("status");
   // Allow the node to publish over MQTT. Allow the parameter "on" to be set from MQTT broker, i.e. allow remote control
   roomNode.advertise("on").settable(lightOnHandler);
@@ -382,7 +439,7 @@ void setup() {
   // bme.setGasHeater(320, 150); // 320*C for 150 ms
 
   // Force first measure for first report. Then use counter for repititive measure.
-  measure();
+  // measure();
   measureTimer.attach(5.0, measure);
   expTimer.once(30.0, debugReport);
 }
