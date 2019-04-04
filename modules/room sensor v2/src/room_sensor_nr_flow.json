@@ -1,0 +1,1164 @@
+[
+    {
+        "id": "214f0103.1da30e",
+        "type": "mqtt out",
+        "z": "669e4b2e.c077d4",
+        "name": "outlet toogle",
+        "topic": "",
+        "qos": "0",
+        "retain": "false",
+        "broker": "2bd2afca.e962e",
+        "x": 850,
+        "y": 2620,
+        "wires": []
+    },
+    {
+        "id": "a6c328be.07d3e8",
+        "type": "ui_switch",
+        "z": "669e4b2e.c077d4",
+        "name": "",
+        "label": "Enable Schedule",
+        "group": "721fb8ce.3dc1d8",
+        "order": 1,
+        "width": "0",
+        "height": "0",
+        "passthru": true,
+        "decouple": "false",
+        "topic": "",
+        "style": "",
+        "onvalue": "suspended false",
+        "onvalueType": "str",
+        "onicon": "",
+        "oncolor": "",
+        "offvalue": "suspended true",
+        "offvalueType": "str",
+        "officon": "",
+        "offcolor": "",
+        "x": 330,
+        "y": 2540,
+        "wires": [
+            [
+                "7608a83.c079a58",
+                "dba5add0.bebfc",
+                "a35b5581.bfdf18",
+                "5dc26226.f8855c"
+            ]
+        ]
+    },
+    {
+        "id": "418d9ef5.94592",
+        "type": "ui_slider",
+        "z": "669e4b2e.c077d4",
+        "name": "",
+        "label": "Off in {{ value }} min",
+        "group": "721fb8ce.3dc1d8",
+        "order": 2,
+        "width": "0",
+        "height": "0",
+        "passthru": true,
+        "topic": "",
+        "min": 0,
+        "max": "90",
+        "step": 1,
+        "x": 750,
+        "y": 2560,
+        "wires": [
+            [
+                "32d08a5f.ca1366"
+            ]
+        ]
+    },
+    {
+        "id": "d646325.411fbd",
+        "type": "ui_switch",
+        "z": "669e4b2e.c077d4",
+        "name": "",
+        "label": "Load on",
+        "group": "721fb8ce.3dc1d8",
+        "order": 3,
+        "width": "5",
+        "height": "1",
+        "passthru": false,
+        "decouple": "true",
+        "topic": "homie/living-room/power/on/set",
+        "style": "",
+        "onvalue": "on",
+        "onvalueType": "str",
+        "onicon": "",
+        "oncolor": "",
+        "offvalue": "off",
+        "offvalueType": "str",
+        "officon": "",
+        "offcolor": "",
+        "x": 140,
+        "y": 2680,
+        "wires": [
+            [
+                "19b85763.d18dd9"
+            ]
+        ]
+    },
+    {
+        "id": "19b85763.d18dd9",
+        "type": "function",
+        "z": "669e4b2e.c077d4",
+        "name": "parse_timeout",
+        "func": "// Outputs:\n// Counter_to_display, GPIO control via BigTimer, Counter_to_process\n\n// This beautiful expression doesn't work, gets default 10 always.\n// var delay = typeof(context.get('get_bedroom_timeout') == undefined) ? 10 : flow.get('get_bedroom_timeout');\n// This ugly construction works. :(\ntry{\n    var delay = flow.get('get_livingroom_timeout');\n} catch (er) {\n    var delay = 10;\n}\n\nvar state = context.get('state') || 'ignore';\nvar topic = context.get('topic') || msg.topic;\ncontext.set('topic', topic);\ntopic = context.get('topic');\nnode.status({fill:\"yellow\",shape:\"ring\",text: delay+','+state+','+msg.payload});\n\n// Block loop of messages when off\nif ('off' == msg.payload && 'off' == state) return [null, null, null];\nnode.status({fill:\"yellow\",shape:\"dot\",text: delay+','+state+','+msg.payload});\n\n// Keep msg for next round\nif ('on' == msg.payload) {\n    // Don't count/display if fully manual\n    var m1 = (delay > 0) ? {payload: delay} : null; \n    // Set delay, start countdown, on load\n    context.set('state', 'on');\n    node.status({fill:\"green\", shape:\"dot\", text: delay+','+context.get('state')+','+msg.payload});\n    return [m1, msg, m1];  \n} else if (('off' == msg.payload) || (parseInt(msg.payload) <= 1)) {\n    // off load, reset clear counter\n    context.set('state', 'off');\n    node.status({fill:\"red\",shape:\"dot\",text: delay+','+context.get('state')+','+msg.payload});\n    return [{payload: ' '}, {payload: 'off', topic: topic}, null];\n} else if (parseInt(msg.payload) > 1 && context.get('state') == 'on') {\n    // decrement countdown\n    var m1 = {payload: parseInt(msg.payload)-1};\n    node.status({fill:\"blue\",shape:\"dot\",text: delay+'>'+m1.payload+','+state+','+msg.payload});\n    return [m1, null, m1];\n}\n\n// Unexpected state: look for a bug in reached here.\nnode.status({fill:\"grey\",shape:\"ring\",text: delay+','+state+','+msg.payload+'???'});\nreturn [{payload: ' '}, {payload: 'off', topic: topic}, null];\n",
+        "outputs": 3,
+        "noerr": 0,
+        "x": 160,
+        "y": 2740,
+        "wires": [
+            [
+                "3f08fc32.cb1104"
+            ],
+            [
+                "d646325.411fbd",
+                "a35b5581.bfdf18",
+                "6a31a405.027d9c"
+            ],
+            [
+                "bc30d330.c8637"
+            ]
+        ]
+    },
+    {
+        "id": "7b093ce0.ad8174",
+        "type": "debug",
+        "z": "669e4b2e.c077d4",
+        "name": "livingroom_load",
+        "active": true,
+        "tosidebar": true,
+        "console": true,
+        "tostatus": false,
+        "complete": "payload",
+        "x": 830,
+        "y": 2680,
+        "wires": []
+    },
+    {
+        "id": "32d08a5f.ca1366",
+        "type": "function",
+        "z": "669e4b2e.c077d4",
+        "name": "UI_to_flow_context",
+        "func": "flow.set(\"get_livingroom_timeout\", msg.payload);\nreturn null;",
+        "outputs": 1,
+        "noerr": 0,
+        "x": 910,
+        "y": 2560,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "571647bf.1785b8",
+        "type": "inject",
+        "z": "669e4b2e.c077d4",
+        "name": "",
+        "topic": "",
+        "payload": "10",
+        "payloadType": "num",
+        "repeat": "",
+        "crontab": "",
+        "once": true,
+        "onceDelay": 0.1,
+        "x": 590,
+        "y": 2520,
+        "wires": [
+            [
+                "418d9ef5.94592"
+            ]
+        ]
+    },
+    {
+        "id": "bc30d330.c8637",
+        "type": "trigger",
+        "z": "669e4b2e.c077d4",
+        "op1": "",
+        "op2": "",
+        "op1type": "nul",
+        "op2type": "pay",
+        "duration": "1",
+        "extend": false,
+        "units": "min",
+        "reset": "",
+        "bytopic": "all",
+        "name": "",
+        "x": 210,
+        "y": 2800,
+        "wires": [
+            [
+                "19b85763.d18dd9"
+            ]
+        ]
+    },
+    {
+        "id": "3f08fc32.cb1104",
+        "type": "ui_text",
+        "z": "669e4b2e.c077d4",
+        "group": "721fb8ce.3dc1d8",
+        "order": 4,
+        "width": "1",
+        "height": "1",
+        "name": "counter",
+        "label": "",
+        "format": "{{msg.payload}}",
+        "layout": "row-right",
+        "x": 340,
+        "y": 2680,
+        "wires": []
+    },
+    {
+        "id": "861e3e0b.9138",
+        "type": "change",
+        "z": "669e4b2e.c077d4",
+        "name": "mqtt2switch",
+        "rules": [
+            {
+                "t": "change",
+                "p": "payload",
+                "pt": "msg",
+                "from": "false",
+                "fromt": "str",
+                "to": "off",
+                "tot": "str"
+            },
+            {
+                "t": "change",
+                "p": "payload",
+                "pt": "msg",
+                "from": "true",
+                "fromt": "str",
+                "to": "on",
+                "tot": "str"
+            }
+        ],
+        "action": "",
+        "property": "",
+        "from": "",
+        "to": "",
+        "reg": false,
+        "x": 230,
+        "y": 2640,
+        "wires": [
+            [
+                "d646325.411fbd",
+                "8d497d4f.2304c"
+            ]
+        ]
+    },
+    {
+        "id": "6df501c7.95f26",
+        "type": "change",
+        "z": "669e4b2e.c077d4",
+        "name": "switch2mqtt",
+        "rules": [
+            {
+                "t": "change",
+                "p": "payload",
+                "pt": "msg",
+                "from": "off",
+                "fromt": "str",
+                "to": "false",
+                "tot": "str"
+            },
+            {
+                "t": "change",
+                "p": "payload",
+                "pt": "msg",
+                "from": "on",
+                "fromt": "str",
+                "to": "true",
+                "tot": "str"
+            }
+        ],
+        "action": "",
+        "property": "",
+        "from": "",
+        "to": "",
+        "reg": false,
+        "x": 670,
+        "y": 2620,
+        "wires": [
+            [
+                "214f0103.1da30e"
+            ]
+        ]
+    },
+    {
+        "id": "4073beb1.bbb83",
+        "type": "mqtt in",
+        "z": "669e4b2e.c077d4",
+        "name": "Livingroom_relay",
+        "topic": "homie/living-room/power/on",
+        "qos": "2",
+        "broker": "2bd2afca.e962e",
+        "x": 140,
+        "y": 2580,
+        "wires": [
+            [
+                "861e3e0b.9138",
+                "6a31a405.027d9c"
+            ]
+        ]
+    },
+    {
+        "id": "bbe0e9b7.a1f4c8",
+        "type": "ui_chart",
+        "z": "669e4b2e.c077d4",
+        "name": "",
+        "group": "721fb8ce.3dc1d8",
+        "order": 5,
+        "width": "6",
+        "height": "2",
+        "label": "Outlet",
+        "chartType": "line",
+        "legend": "false",
+        "xformat": "dd HH:mm",
+        "interpolate": "step",
+        "nodata": "No data",
+        "dot": false,
+        "ymin": "",
+        "ymax": "",
+        "removeOlder": "3",
+        "removeOlderPoints": "",
+        "removeOlderUnit": "86400",
+        "cutout": 0,
+        "useOneColor": false,
+        "colors": [
+            "#1f77b4",
+            "#aec7e8",
+            "#ff7f0e",
+            "#2ca02c",
+            "#98df8a",
+            "#d62728",
+            "#ff9896",
+            "#9467bd",
+            "#c5b0d5"
+        ],
+        "useOldStyle": false,
+        "x": 750,
+        "y": 2780,
+        "wires": [
+            [
+                "46dcb791.596c48"
+            ],
+            []
+        ]
+    },
+    {
+        "id": "46dcb791.596c48",
+        "type": "persist in",
+        "z": "669e4b2e.c077d4",
+        "name": "livingroom_outlet",
+        "storageNode": "714f2b1b.b19b84",
+        "x": 910,
+        "y": 2780,
+        "wires": []
+    },
+    {
+        "id": "55c33196.b9adf",
+        "type": "persist out",
+        "z": "669e4b2e.c077d4",
+        "name": "livingroom_outlet",
+        "storageNode": "714f2b1b.b19b84",
+        "x": 590,
+        "y": 2820,
+        "wires": [
+            [
+                "bbe0e9b7.a1f4c8"
+            ]
+        ]
+    },
+    {
+        "id": "dba5add0.bebfc",
+        "type": "schedex",
+        "z": "669e4b2e.c077d4",
+        "name": "outlet2",
+        "suspended": false,
+        "lat": "32",
+        "lon": "34",
+        "ontime": "18:15",
+        "ontopic": "homie/living-room/power/on/set",
+        "onpayload": "true",
+        "onoffset": "15",
+        "onrandomoffset": true,
+        "offtime": "18:30",
+        "offtopic": "homie/living-room/power/on/set",
+        "offpayload": "false",
+        "offoffset": "20",
+        "offrandomoffset": true,
+        "mon": true,
+        "tue": true,
+        "wed": true,
+        "thu": true,
+        "fri": true,
+        "sat": true,
+        "sun": true,
+        "x": 475,
+        "y": 2634,
+        "wires": [
+            [
+                "271a1396.4a019c"
+            ]
+        ]
+    },
+    {
+        "id": "271a1396.4a019c",
+        "type": "trigger",
+        "z": "669e4b2e.c077d4",
+        "op1": "",
+        "op2": "",
+        "op1type": "nul",
+        "op2type": "pay",
+        "duration": "2",
+        "extend": false,
+        "units": "s",
+        "reset": "",
+        "bytopic": "all",
+        "name": "2sec delay",
+        "x": 630,
+        "y": 2680,
+        "wires": [
+            [
+                "6df501c7.95f26",
+                "7b093ce0.ad8174"
+            ]
+        ]
+    },
+    {
+        "id": "5dc26226.f8855c",
+        "type": "schedex",
+        "z": "669e4b2e.c077d4",
+        "name": "outlet4",
+        "suspended": false,
+        "lat": "32",
+        "lon": "34",
+        "ontime": "19:50",
+        "ontopic": "homie/living-room/power/on/set",
+        "onpayload": "true",
+        "onoffset": "10",
+        "onrandomoffset": true,
+        "offtime": "20:10",
+        "offtopic": "homie/living-room/power/on/set",
+        "offpayload": "false",
+        "offoffset": "10",
+        "offrandomoffset": true,
+        "mon": true,
+        "tue": true,
+        "wed": true,
+        "thu": true,
+        "fri": true,
+        "sat": true,
+        "sun": true,
+        "x": 470,
+        "y": 2760,
+        "wires": [
+            [
+                "271a1396.4a019c"
+            ]
+        ]
+    },
+    {
+        "id": "7608a83.c079a58",
+        "type": "persist in",
+        "z": "669e4b2e.c077d4",
+        "name": "livingroom_enable",
+        "storageNode": "dcca843b.441688",
+        "x": 570,
+        "y": 2560,
+        "wires": []
+    },
+    {
+        "id": "9d735aa8.129f38",
+        "type": "persist out",
+        "z": "669e4b2e.c077d4",
+        "name": "livingroom_enable",
+        "storageNode": "dcca843b.441688",
+        "x": 130,
+        "y": 2540,
+        "wires": [
+            [
+                "a6c328be.07d3e8"
+            ]
+        ]
+    },
+    {
+        "id": "e754e8c0.01e5e8",
+        "type": "mqtt in",
+        "z": "669e4b2e.c077d4",
+        "name": "press",
+        "topic": "homie/living-room/power/pressure",
+        "qos": "2",
+        "broker": "2bd2afca.e962e",
+        "x": 130,
+        "y": 3040,
+        "wires": [
+            [
+                "6a6cdf0a.8aab7"
+            ]
+        ]
+    },
+    {
+        "id": "7b835201.8f4dfc",
+        "type": "mqtt in",
+        "z": "669e4b2e.c077d4",
+        "name": "temp",
+        "topic": "homie/living-room/power/temperature",
+        "qos": "2",
+        "broker": "2bd2afca.e962e",
+        "x": 130,
+        "y": 3100,
+        "wires": [
+            [
+                "83c7f741.a54158"
+            ]
+        ]
+    },
+    {
+        "id": "78cde656.691128",
+        "type": "mqtt in",
+        "z": "669e4b2e.c077d4",
+        "name": "humidity",
+        "topic": "homie/living-room/power/humidity",
+        "qos": "2",
+        "broker": "2bd2afca.e962e",
+        "x": 140,
+        "y": 2900,
+        "wires": [
+            [
+                "d448e8da.fcbbf8"
+            ]
+        ]
+    },
+    {
+        "id": "aa003c58.17fe5",
+        "type": "mqtt in",
+        "z": "669e4b2e.c077d4",
+        "name": "move",
+        "topic": "homie/living-room/power/pir",
+        "qos": "2",
+        "broker": "2bd2afca.e962e",
+        "x": 130,
+        "y": 3160,
+        "wires": [
+            [
+                "a1b823fc.99593"
+            ]
+        ]
+    },
+    {
+        "id": "354627ab.40c0a8",
+        "type": "persist in",
+        "z": "669e4b2e.c077d4",
+        "name": "livingroom_baro",
+        "storageNode": "4e3f0767.b916b8",
+        "x": 860,
+        "y": 3060,
+        "wires": []
+    },
+    {
+        "id": "efe9f61a.140908",
+        "type": "persist out",
+        "z": "669e4b2e.c077d4",
+        "name": "livingroom_baro",
+        "storageNode": "4e3f0767.b916b8",
+        "x": 500,
+        "y": 3060,
+        "wires": [
+            [
+                "e381c1cf.90ce8"
+            ]
+        ]
+    },
+    {
+        "id": "e8bd37b3.a98de8",
+        "type": "persist in",
+        "z": "669e4b2e.c077d4",
+        "name": "livingroom_humi",
+        "storageNode": "25d2a3dc.be1ffc",
+        "x": 860,
+        "y": 2920,
+        "wires": []
+    },
+    {
+        "id": "2faac6d9.3ac95a",
+        "type": "persist out",
+        "z": "669e4b2e.c077d4",
+        "name": "livingroom_humi",
+        "storageNode": "25d2a3dc.be1ffc",
+        "x": 500,
+        "y": 2880,
+        "wires": [
+            [
+                "cb1feb6.bd06c18"
+            ]
+        ]
+    },
+    {
+        "id": "857dbdfd.50dac",
+        "type": "persist in",
+        "z": "669e4b2e.c077d4",
+        "name": "livingroom_pir",
+        "storageNode": "6de37e03.84912",
+        "x": 860,
+        "y": 3180,
+        "wires": []
+    },
+    {
+        "id": "7074f019.5be4b",
+        "type": "persist out",
+        "z": "669e4b2e.c077d4",
+        "name": "livingroom_pir",
+        "storageNode": "6de37e03.84912",
+        "x": 500,
+        "y": 3180,
+        "wires": [
+            [
+                "8c3fb294.131eb"
+            ]
+        ]
+    },
+    {
+        "id": "bafb6f33.3c7fa",
+        "type": "persist in",
+        "z": "669e4b2e.c077d4",
+        "name": "livingroom_temp",
+        "storageNode": "b445edf7.e01c2",
+        "x": 860,
+        "y": 3120,
+        "wires": []
+    },
+    {
+        "id": "f43b733e.f8635",
+        "type": "persist out",
+        "z": "669e4b2e.c077d4",
+        "name": "livingroom_temp",
+        "storageNode": "b445edf7.e01c2",
+        "x": 500,
+        "y": 3120,
+        "wires": [
+            [
+                "6fc9fb5e.60b794"
+            ]
+        ]
+    },
+    {
+        "id": "e381c1cf.90ce8",
+        "type": "ui_chart",
+        "z": "669e4b2e.c077d4",
+        "name": "",
+        "group": "721fb8ce.3dc1d8",
+        "order": 9,
+        "width": "6",
+        "height": "3",
+        "label": "Barometer, hPa",
+        "chartType": "line",
+        "legend": "false",
+        "xformat": "dd HH:mm",
+        "interpolate": "bezier",
+        "nodata": "No data",
+        "dot": false,
+        "ymin": "",
+        "ymax": "",
+        "removeOlder": "2",
+        "removeOlderPoints": "",
+        "removeOlderUnit": "86400",
+        "cutout": 0,
+        "useOneColor": false,
+        "colors": [
+            "#0080ff",
+            "#aec7e8",
+            "#ff7f0e",
+            "#2ca02c",
+            "#98df8a",
+            "#d62728",
+            "#ff9896",
+            "#9467bd",
+            "#c5b0d5"
+        ],
+        "useOldStyle": false,
+        "x": 680,
+        "y": 3040,
+        "wires": [
+            [
+                "354627ab.40c0a8"
+            ],
+            []
+        ]
+    },
+    {
+        "id": "6fc9fb5e.60b794",
+        "type": "ui_chart",
+        "z": "669e4b2e.c077d4",
+        "name": "",
+        "group": "721fb8ce.3dc1d8",
+        "order": 8,
+        "width": "6",
+        "height": "3",
+        "label": "Temp, *C",
+        "chartType": "line",
+        "legend": "false",
+        "xformat": "dd HH:mm",
+        "interpolate": "bezier",
+        "nodata": "No data",
+        "dot": false,
+        "ymin": "",
+        "ymax": "",
+        "removeOlder": "2",
+        "removeOlderPoints": "",
+        "removeOlderUnit": "86400",
+        "cutout": 0,
+        "useOneColor": false,
+        "colors": [
+            "#ff8080",
+            "#aec7e8",
+            "#ff7f0e",
+            "#2ca02c",
+            "#98df8a",
+            "#d62728",
+            "#ff9896",
+            "#9467bd",
+            "#c5b0d5"
+        ],
+        "useOldStyle": false,
+        "x": 660,
+        "y": 3100,
+        "wires": [
+            [
+                "bafb6f33.3c7fa"
+            ],
+            []
+        ]
+    },
+    {
+        "id": "cb1feb6.bd06c18",
+        "type": "ui_chart",
+        "z": "669e4b2e.c077d4",
+        "name": "",
+        "group": "721fb8ce.3dc1d8",
+        "order": 7,
+        "width": "6",
+        "height": "4",
+        "label": "Air quality",
+        "chartType": "line",
+        "legend": "true",
+        "xformat": "dd HH:mm",
+        "interpolate": "bezier",
+        "nodata": "No data",
+        "dot": false,
+        "ymin": "0",
+        "ymax": "100",
+        "removeOlder": "2",
+        "removeOlderPoints": "",
+        "removeOlderUnit": "86400",
+        "cutout": 0,
+        "useOneColor": false,
+        "colors": [
+            "#00ff40",
+            "#aec7e8",
+            "#ff7f0e",
+            "#2ca02c",
+            "#98df8a",
+            "#d62728",
+            "#ff9896",
+            "#9467bd",
+            "#c5b0d5"
+        ],
+        "useOldStyle": false,
+        "x": 660,
+        "y": 2900,
+        "wires": [
+            [
+                "e8bd37b3.a98de8"
+            ],
+            []
+        ]
+    },
+    {
+        "id": "8c3fb294.131eb",
+        "type": "ui_chart",
+        "z": "669e4b2e.c077d4",
+        "name": "",
+        "group": "721fb8ce.3dc1d8",
+        "order": 6,
+        "width": "6",
+        "height": "2",
+        "label": "Move",
+        "chartType": "line",
+        "legend": "false",
+        "xformat": "dd HH:mm",
+        "interpolate": "step",
+        "nodata": "No data",
+        "dot": false,
+        "ymin": "",
+        "ymax": "",
+        "removeOlder": "2",
+        "removeOlderPoints": "",
+        "removeOlderUnit": "86400",
+        "cutout": 0,
+        "useOneColor": false,
+        "colors": [
+            "#ff8040",
+            "#aec7e8",
+            "#ff7f0e",
+            "#2ca02c",
+            "#98df8a",
+            "#d62728",
+            "#ff9896",
+            "#9467bd",
+            "#c5b0d5"
+        ],
+        "useOldStyle": false,
+        "x": 650,
+        "y": 3160,
+        "wires": [
+            [
+                "857dbdfd.50dac"
+            ],
+            []
+        ]
+    },
+    {
+        "id": "6a6cdf0a.8aab7",
+        "type": "function",
+        "z": "669e4b2e.c077d4",
+        "name": "num_from_payload",
+        "func": "var old = msg.payload\ntry{\n    // Get 2nd word from the end of topic\n    msg.payload = msg.payload.split(' ')[0].trim();\n} catch (er) {\n    node.status({text: 'Message error'});\n    return null;\n}\nnode.status({text: old + '>>' + msg.payload});\n\nreturn msg;",
+        "outputs": 1,
+        "noerr": 0,
+        "x": 290,
+        "y": 3040,
+        "wires": [
+            [
+                "e381c1cf.90ce8",
+                "47730cf4.71ec14"
+            ]
+        ]
+    },
+    {
+        "id": "83c7f741.a54158",
+        "type": "function",
+        "z": "669e4b2e.c077d4",
+        "name": "num_from_payload",
+        "func": "var old = msg.payload\ntry{\n    // Get 2nd word from the end of topic\n    msg.payload = msg.payload.split(' ')[0].trim();\n} catch (er) {\n    node.status({text: 'Message error'});\n    return null;\n}\nnode.status({text: old + '>>' + msg.payload});\n\nreturn msg;",
+        "outputs": 1,
+        "noerr": 0,
+        "x": 290,
+        "y": 3100,
+        "wires": [
+            [
+                "6fc9fb5e.60b794"
+            ]
+        ]
+    },
+    {
+        "id": "d448e8da.fcbbf8",
+        "type": "function",
+        "z": "669e4b2e.c077d4",
+        "name": "num_from_payload",
+        "func": "var old = msg.payload\ntry{\n    // Get 2nd word from the end of topic\n    msg.payload = msg.payload.split(' ')[0].trim();\n} catch (er) {\n    node.status({text: 'Message error'});\n    return null;\n}\nnode.status({text: old + '>>' + msg.payload});\nmsg.topic = 'Humidity';\nreturn msg;",
+        "outputs": 1,
+        "noerr": 0,
+        "x": 310,
+        "y": 2900,
+        "wires": [
+            [
+                "cb1feb6.bd06c18"
+            ]
+        ]
+    },
+    {
+        "id": "a1b823fc.99593",
+        "type": "trigger",
+        "z": "669e4b2e.c077d4",
+        "op1": "1",
+        "op2": "0",
+        "op1type": "num",
+        "op2type": "num",
+        "duration": "1",
+        "extend": true,
+        "units": "min",
+        "reset": "",
+        "bytopic": "all",
+        "name": "pir2digit",
+        "x": 280,
+        "y": 3160,
+        "wires": [
+            [
+                "8c3fb294.131eb"
+            ]
+        ]
+    },
+    {
+        "id": "8d497d4f.2304c",
+        "type": "function",
+        "z": "669e4b2e.c077d4",
+        "name": "msg2digit",
+        "func": "var old = msg.payload;\nnode.status({text: old + '???'});\nif (msg.payload == null) return;\n\nif (msg.payload === true || \n    msg.payload.toLowerCase() == '1' || \n    msg.payload.toLowerCase() == 'open' || \n    msg.payload.toLowerCase() == 'on' ||\n    parseInt(msg.payload) > 0) { msg.payload = 1 }\n    else if (msg.payload === false || \n        msg.payload.toLowerCase() == '0' || \n        msg.payload.toLowerCase() == 'close' || \n        msg.payload.toLowerCase() == 'off' ||\n        parseInt(msg.payload) <= 0) { msg.payload = 0 }\n        else return;\n\nnode.status({text: old + \">>\" + msg.payload});\n\ntry{\n    // Get 1st word from the end of topic\n    msg.topic = msg.topic.split('/').slice(-1)[0].trim();\n} catch (er) {\n    node.status({text: 'Topic error'});\n    return null;\n}\nnode.status({text: msg.topic + '>>' + old + \",\" + msg.payload});\n\nreturn msg;",
+        "outputs": 1,
+        "noerr": 0,
+        "x": 640,
+        "y": 2740,
+        "wires": [
+            [
+                "bbe0e9b7.a1f4c8"
+            ]
+        ]
+    },
+    {
+        "id": "a35b5581.bfdf18",
+        "type": "schedex",
+        "z": "669e4b2e.c077d4",
+        "name": "outlet3",
+        "suspended": false,
+        "lat": "32",
+        "lon": "34",
+        "ontime": "19:15",
+        "ontopic": "homie/living-room/power/on/set",
+        "onpayload": "true",
+        "onoffset": "15",
+        "onrandomoffset": true,
+        "offtime": "19:30",
+        "offtopic": "homie/living-room/power/on/set",
+        "offpayload": "false",
+        "offoffset": "20",
+        "offrandomoffset": true,
+        "mon": true,
+        "tue": true,
+        "wed": true,
+        "thu": true,
+        "fri": true,
+        "sat": true,
+        "sun": true,
+        "x": 470,
+        "y": 2700,
+        "wires": [
+            [
+                "271a1396.4a019c"
+            ]
+        ]
+    },
+    {
+        "id": "6a31a405.027d9c",
+        "type": "debug",
+        "z": "669e4b2e.c077d4",
+        "name": "livingroom_input",
+        "active": true,
+        "tosidebar": true,
+        "console": true,
+        "tostatus": false,
+        "complete": "payload",
+        "x": 390,
+        "y": 2600,
+        "wires": []
+    },
+    {
+        "id": "47730cf4.71ec14",
+        "type": "ui_gauge",
+        "z": "669e4b2e.c077d4",
+        "name": "barometer",
+        "group": "3c6cea68.f18b46",
+        "order": 2,
+        "width": "4",
+        "height": "4",
+        "gtype": "gage",
+        "title": "Barometer",
+        "label": "hPa",
+        "format": "{{value}}",
+        "min": "960",
+        "max": "1060",
+        "colors": [
+            "#0080ff",
+            "#00ff40",
+            "#ff8080"
+        ],
+        "seg1": "1006",
+        "seg2": "1022",
+        "x": 670,
+        "y": 3000,
+        "wires": []
+    },
+    {
+        "id": "f40b6c73.cf16b",
+        "type": "mqtt in",
+        "z": "669e4b2e.c077d4",
+        "name": "quality",
+        "topic": "homie/living-room/power/quality",
+        "qos": "2",
+        "broker": "2bd2afca.e962e",
+        "x": 130,
+        "y": 2960,
+        "wires": [
+            [
+                "d7d26681.3d5618"
+            ]
+        ]
+    },
+    {
+        "id": "d7d26681.3d5618",
+        "type": "function",
+        "z": "669e4b2e.c077d4",
+        "name": "num_from_payload",
+        "func": "var old = msg.payload\ntry{\n    // Get 2nd word from the end of topic\n    msg.payload = msg.payload.split(' ')[0].trim();\n} catch (er) {\n    node.status({text: 'Message error'});\n    return null;\n}\nnode.status({text: old + '>>' + msg.payload});\nmsg.topic = 'Quality';\nreturn msg;",
+        "outputs": 1,
+        "noerr": 0,
+        "x": 290,
+        "y": 2960,
+        "wires": [
+            [
+                "d22cc606.70b6e8",
+                "cb1feb6.bd06c18"
+            ]
+        ]
+    },
+    {
+        "id": "d22cc606.70b6e8",
+        "type": "ui_gauge",
+        "z": "669e4b2e.c077d4",
+        "name": "air_quality",
+        "group": "3c6cea68.f18b46",
+        "order": 3,
+        "width": "4",
+        "height": "4",
+        "gtype": "gage",
+        "title": "Air quality",
+        "label": "%",
+        "format": "{{value}}",
+        "min": "0",
+        "max": "100",
+        "colors": [
+            "#ff0000",
+            "#ffff00",
+            "#00ff00"
+        ],
+        "seg1": "30",
+        "seg2": "60",
+        "x": 670,
+        "y": 2960,
+        "wires": []
+    },
+    {
+        "id": "aeae2306.962e6",
+        "type": "ui_text",
+        "z": "669e4b2e.c077d4",
+        "group": "3c6cea68.f18b46",
+        "order": 0,
+        "width": 0,
+        "height": 0,
+        "name": "",
+        "label": "Forecast:",
+        "format": "{{msg.payload}}",
+        "layout": "row-spread",
+        "x": 440,
+        "y": 3000,
+        "wires": []
+    },
+    {
+        "id": "106bf848.8cb068",
+        "type": "mqtt in",
+        "z": "669e4b2e.c077d4",
+        "name": "forecast",
+        "topic": "homie/living-room/power/forecast",
+        "qos": "2",
+        "broker": "2bd2afca.e962e",
+        "x": 130,
+        "y": 3000,
+        "wires": [
+            [
+                "aeae2306.962e6"
+            ]
+        ]
+    },
+    {
+        "id": "2bd2afca.e962e",
+        "type": "mqtt-broker",
+        "z": "",
+        "name": "",
+        "broker": "localhost",
+        "port": "1883",
+        "clientid": "",
+        "usetls": false,
+        "compatmode": true,
+        "keepalive": "60",
+        "cleansession": true,
+        "birthTopic": "",
+        "birthQos": "0",
+        "birthPayload": "",
+        "willTopic": "",
+        "willQos": "0",
+        "willPayload": ""
+    },
+    {
+        "id": "721fb8ce.3dc1d8",
+        "type": "ui_group",
+        "z": "",
+        "name": "Living room",
+        "tab": "531ef1f0.9a426",
+        "order": 3,
+        "disp": true,
+        "width": "6",
+        "collapse": false
+    },
+    {
+        "id": "714f2b1b.b19b84",
+        "type": "persist-store",
+        "z": "",
+        "filename": "livingroom_outlet.json",
+        "interval": "3600"
+    },
+    {
+        "id": "dcca843b.441688",
+        "type": "persist-store",
+        "z": "",
+        "filename": "livingroom_enable.json",
+        "interval": "3600"
+    },
+    {
+        "id": "4e3f0767.b916b8",
+        "type": "persist-store",
+        "z": "",
+        "filename": "livingroom_baro.json",
+        "interval": "3600"
+    },
+    {
+        "id": "25d2a3dc.be1ffc",
+        "type": "persist-store",
+        "z": "",
+        "filename": "livingroom_air.json",
+        "interval": "3600"
+    },
+    {
+        "id": "6de37e03.84912",
+        "type": "persist-store",
+        "z": "",
+        "filename": "livingroom_pir.json",
+        "interval": "3600"
+    },
+    {
+        "id": "b445edf7.e01c2",
+        "type": "persist-store",
+        "z": "",
+        "filename": "livingroom_temp.json",
+        "interval": "3600"
+    },
+    {
+        "id": "3c6cea68.f18b46",
+        "type": "ui_group",
+        "z": "",
+        "name": "Weather",
+        "tab": "531ef1f0.9a426",
+        "order": 1,
+        "disp": false,
+        "width": "9",
+        "collapse": false
+    },
+    {
+        "id": "531ef1f0.9a426",
+        "type": "ui_tab",
+        "z": "",
+        "name": "MyHome",
+        "icon": "home",
+        "order": 1
+    }
+]
