@@ -4,6 +4,8 @@ Changes from [first version](https://github.com/igrowing/esp8266_smart_home/tree
 - Based on separate HW, old broken outlet, used as mechanical basis and its PSU. Tiny size.
 - No more Easy-ESP. Moved to [Homie v2.0.0](https://github.com/marvinroger/homie-esp8266). More flexible in features, more stable, works faster.
 - BME sensor in use: air quality, temperature, humidity, air pressure. Average measurements by continuous reads. Send report periodically (interval is set via MQTT, default 15 min).
+- Send verbal forecast for 24 hours in around 30 km of measurement location.
+- Send "Bad air quality" report if the air quality goes below 30%.
 - More clicks :)
   - Single click - toggle.
   - Long click - set timer (timer is adjustible via MQTT, default 15 min).
@@ -20,6 +22,16 @@ Once the firmware is uploaded and the module is powered on, the Homie-xxxxxx AP 
 - Follow step-by-step on-screen instructions. DO NOT change the MQTT base name, leave it blank to avoid a bug in Homie. Allow OTA.
 - Once the setup finished, switch back to your regular network: now you'll Homie reports in your MQTT broker.
 
+## Node-RED intergation example
+Please refer to the json code in src folder.
+
+![The flow](room_sensor_nr_flow.jpg)
+
+The UI example is partial, just for illustration.
+
+![The Node-RED UI](room_sensor_nr_ui.jpg)
+
+
 ## MQTT usage
 ### Reporting from the Room sensor to MQTT broker
 When the room sensor is booted it publishes following to MQTT broker:
@@ -30,7 +42,7 @@ homie/awesome-room/$name awesome room outlet
 homie/awesome-room/$localip ip.ip.ip.ip
 homie/awesome-room/$stats/interval 0
 homie/awesome-room/$fw/name room-sensor
-homie/awesome-room/$fw/version 1.0.3
+homie/awesome-room/$fw/version 1.0.6
 homie/awesome-room/$fw/checksum b95f2078c322fb698d8ade042cecdec0
 homie/awesome-room/$implementation esp8266
 homie/awesome-room/$implementation/config {"wifi":{"ssid":"yourwifi"},"mqtt":{"host":"mqtt_addr","port":1883,"auth":false},"name":"Awesome room outlet","ota":{"enabled":true},"device_id":"awsome-room"}
@@ -52,6 +64,8 @@ homie/awesome-room/power/temperature 21.49 *C
 homie/awesome-room/power/humidity 46.76 %
 homie/awesome-room/power/pressure 1012.65 hPa
 homie/awesome-room/power/air 126.67 kOhm
+homie/awesome-room/power/quality 99.7 %
+homie/awesome-room/power/forecast Fair
 ```
 
 When power is turned on or off, locally by button or by timer or remotely it looks like:
@@ -82,7 +96,4 @@ mosquitto_pub -t homie/awesome-room/power/timer-interval-s/set -m '1800'
 - Add light sensor like in the first room sensor... Doubtful need.
 - Add more hardware: IR transmitter to control TV, AC, etc. Flame detector to alert fire. Accelerometer to register earthquakes :) Microphone for voice actions.
 - Publish schematics.
-- Publish some picures.
 - Add internal scheduling. Doubtful need since MQTT works well.
-- Calibrate eVOC sensor. It presents kOhms now. This is not much meaningful.
-- Add action or alert on special eVOC event or/and PIR event. That's hard to define. Welcome propose your logic :)
