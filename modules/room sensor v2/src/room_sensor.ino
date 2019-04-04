@@ -24,13 +24,18 @@
 #define CLEARED_U   0
 #define EVOC_TRSH   30
 #define PIR_REP_INTERVAL_MS 60000
+#define HPA_COMPARE_INTERVAL_MS 3600000  // 1 hour
 const String PREFIX = "/state";  // part of file name
 
 HomieNode roomNode("power", "switch");
 // Bounce debouncer = Bounce(); // Bounce is built into Homie, so you can use it without including it first
 volatile bool flag_air_alerted = false;
 volatile bool flag_error_reported = false;
-volatile uint32_t lastStatus_ts = CLEARED_U;
+uint32_t lastStatus_ts = CLEARED_U;
+uint32_t forecast_ts = CLEARED_U;
+float last_hpa = CLEARED;
+volatile uint8_t i_forecast = CLEARED;
+const String forecast_sky[] = {"Storm", "Rain", "Likely rain", "Cloudy, Warmer", "Clearing, Cooler", "Fair"};
 volatile uint32_t status_interval_ms = 900000;  // Interval to send reports
 volatile uint32_t outlet_timer_s = 900;         // Interval to turn outlet on by long click
 volatile uint32_t lastPirStatus_ts = CLEARED_U;
@@ -145,6 +150,16 @@ void toggleRelay() {
   setRelay(digitalRead(PIN_RELAY) != HIGH);                 // Change control here if needed. Now it's active high.
 }
 
+// Calibrate gas sensor before any measurement.
+void calibrate() {
+  measure();
+  if (millis() > BME_BURN_IN_TIME) {  // Got enough samples for calibration
+    gas_base = measure_air / measure_count;
+    measureTimer.detach();
+    measureTimer.attach(5.0, measure);
+  }
+}
+
 // Add measurements to aggregative variables. Calculate average in report time.
 void measure() {
   if (bme.performReading()) {
@@ -173,11 +188,6 @@ void measure() {
     roomNode.setProperty("status").send("Failed to read BME680");
     Homie.getLogger() << "Failed to read BME680" << endl;
     flag_error_reported = true;
-  }
-
-  // Calibrate gas sensor before any measurement.
-  if ((millis() > BME_BURN_IN_TIME) && (gas_base == 0.0)) {  // Got enough samples for calibration
-    gas_base = measure_air / measure_count;
   }
 
   if (gas_base != 0.0) {
@@ -253,9 +263,10 @@ void reportStatus() {
 
   lastStatus_ts = millis();
 
+  float hpa = measure_press / measure_count;
   roomNode.setProperty("temperature").setRetained(false).send(String(measure_temp / measure_count) + " *C");
   roomNode.setProperty("humidity").setRetained(false).send(String(measure_humi / measure_count) + " %");
-  roomNode.setProperty("pressure").setRetained(false).send(String(measure_press / measure_count) + " hPa");
+  roomNode.setProperty("pressure").setRetained(false).send(String(hpa) + " hPa");
   roomNode.setProperty("air").setRetained(false).send(String(measure_air / measure_count) + " kOhm");
   if (CLEARED != measure_quality) {
     uint8_t q = (uint8_t) (measure_quality / measure_count);
@@ -273,6 +284,47 @@ void reportStatus() {
     }
   }
 
+  if (CLEARED_U == forecast_ts) {
+    forecast_ts = millis();
+    last_hpa = hpa;
+  } else if (forecast_ts + HPA_COMPARE_INTERVAL_MS > millis()) {  // Compare only when enough time passed
+    /*
+    Tendency                  <               1006-1020 or          >
+                                              1009-1023
+    Steady or rising   Clearing, Cooler       Same               Fair
+    Slowly falling     Rain                   Same               Fair
+    Rapidly falling    Storm                  Likely rain        Cloudy, Warmer
+    http://www.barometricpressureheadache.com/barometric-pressure-and-weather-conditions/
+    {Storm", "Rain", "Likely rain", "Cloudy, Warmer", "Clearing, Cooler", "Fair"}
+      // 0.22 hpa/hour = slow rate
+      // 0.17 hpa/hour = steady
+      // 0.6 hpa/hour = fast
+      or
+      0.75 = fast
+      0.25 = slow
+    */
+    forecast_ts = millis();
+    float fcst_diff = hpa - last_hpa;
+    last_hpa = hpa;
+    if (fcst_diff < -0.75) {
+      if (hpa < 1006.0) i_forecast = 0;
+      else if (hpa > 1020.0) i_forecast = 3;
+      else i_forecast = 2;
+    } else if (fcst_diff < -0.25) {
+      if (hpa < 1006.0) i_forecast = 1;
+      else if (hpa > 1020.0) i_forecast = 5;
+      // else do not change i_forecast;
+    } else { // Steady or rising
+      if (hpa < 1006.0) i_forecast = 4;
+      else if (hpa > 1020.0) i_forecast = 5;
+      // else do not change i_forecast;
+    }
+
+    // Sanity check for 1st report, skip reporting to meaningful value.
+    if (CLEARED != i_forecast)  roomNode.setProperty("forecast").setRetained(false).send(forecast_sky[i_forecast]);
+    // roomNode.setProperty("status").setRetained(false).send("fcst_diff=" + String(fcst_diff)+",last_hpa=" + String(last_hpa)+",hpa=" + String(hpa));
+  }
+  
   measure_count = CLEARED_U;
   measure_temp = CLEARED;
   measure_humi = CLEARED;
@@ -295,20 +347,28 @@ void debugReport() {
 /********************************************************************************************
  * SPIFFS functions  -- store/restore data.
  ********************************************************************************************/
-void writeState() {
+bool is_enough_storage() {
   // Get space remaining.
   FSInfo info;
   SPIFFS.info(info);
   uint32_t freeBytes = info.totalBytes - info.usedBytes;
 
   // If less than 1k: set global file name to 0 and remove all files.
-  if (freeBytes <= 1024) {
+  return freeBytes > 1024;
+}
+
+void clean_storage() {
     lastFileIndex = 0;
     Dir dir = SPIFFS.openDir(PREFIX);
     while (dir.next()) {
       SPIFFS.remove(dir.fileName());
     }
     roomNode.setProperty("status").send("Flash cleaned");
+}
+
+void writeState() {
+  if (!is_enough_storage()) {
+    clean_storage();
   } else {
     // Increment global file name
     lastFileIndex++;
@@ -352,8 +412,9 @@ uint32_t restoreVariable(char *name) {
 bool storeVariable(char *name, uint32_t val) {
   // Return true if value stored in file named as: /var_varname.
   // Return false if writing problem.
+  if (!is_enough_storage()) clean_storage;
   File file = SPIFFS.open(PREFIX_VAR + String(name), "w");
-  // TODO: Add free space validatin like in writeState
+  // Write to file and check result
   if (!file.print(String(val))) {
     roomNode.setProperty("status").send("Failed to write variable to SPIFFS: " + String(name) + ":" + String(val));
     return false;
@@ -400,7 +461,7 @@ void setup() {
   attachInterrupt(digitalPinToInterrupt(PIN_BUTTON), handleBtnDownInt, FALLING);
   attachInterrupt(digitalPinToInterrupt(PIN_PIR), handlePir, RISING);
 
-  Homie_setFirmware("room-sensor", "1.0.5");
+  Homie_setFirmware("room-sensor", "1.0.6");
   // Homie_setBrand("shm");  // homie ???
   // Homie.setResetTrigger(PIN_BUTTON, LOW, 5000);  // Standard 10sec
 
@@ -411,6 +472,7 @@ void setup() {
   roomNode.advertise("pressure");
   roomNode.advertise("air");
   roomNode.advertise("quality");
+  roomNode.advertise("forecast");
   roomNode.advertise("status");
   // Allow the node to publish over MQTT. Allow the parameter "on" to be set from MQTT broker, i.e. allow remote control
   roomNode.advertise("on").settable(lightOnHandler);
@@ -431,16 +493,14 @@ void setup() {
     Serial.println("Could not find a valid BME680 sensor, check wiring!");
   }
 
-  // // Set up oversampling and filter initialization
+  // // Set up oversampling and filter initialization - not needed, done on begin()
   // bme.setTemperatureOversampling(BME680_OS_8X);
   // bme.setHumidityOversampling(BME680_OS_2X);
   // bme.setPressureOversampling(BME680_OS_4X);
   // bme.setIIRFilterSize(BME680_FILTER_SIZE_3);
   // bme.setGasHeater(320, 150); // 320*C for 150 ms
 
-  // Force first measure for first report. Then use counter for repititive measure.
-  // measure();
-  measureTimer.attach(5.0, measure);
+  measureTimer.attach(5.0, calibrate);
   expTimer.once(30.0, debugReport);
 }
 
