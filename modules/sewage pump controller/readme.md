@@ -15,6 +15,9 @@ Couple of times my basement had suffered from ... well... sewage overflow due to
 - The pump can be disabled remotely: this is handy for maintenance.
 - The pump can be disabled by local button click: this is handy for maintenance.
 - Special "install-mode" allows to see the distance to water quickly in MQTT broker while installing the controller.
+
+![Node-Red user interface](pump_nr_ui.jpg)
+
 - The UI is made over Node-RED (works with no UI too).
 - The circuit is equipped with surge protection, OVP, OCP, EMI features where needed.
 - The sketch is implemented with ESP8266/ESP8285 over [Homie framework](https://github.com/marvinroger/homie-esp8266).
