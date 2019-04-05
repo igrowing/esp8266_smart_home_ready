@@ -34,8 +34,8 @@ volatile bool flag_error_reported = false;
 uint32_t lastStatus_ts = CLEARED_U;
 uint32_t forecast_ts = CLEARED_U;
 float last_hpa = CLEARED;
-volatile uint8_t i_forecast = CLEARED;
-const String forecast_sky[] = {"Storm", "Rain", "Likely rain", "Cloudy, Warmer", "Clearing, Cooler", "Fair"};
+volatile uint8_t i_forecast = 0;
+const String forecast_sky[] = {"No change", "Storm", "Rain", "Likely rain", "Cloudy, Warmer", "Clearing, Cooler", "Fair"};
 volatile uint32_t status_interval_ms = 900000;  // Interval to send reports
 volatile uint32_t outlet_timer_s = 900;         // Interval to turn outlet on by long click
 volatile uint32_t lastPirStatus_ts = CLEARED_U;
@@ -295,7 +295,7 @@ void reportStatus() {
     Slowly falling     Rain                   Same               Fair
     Rapidly falling    Storm                  Likely rain        Cloudy, Warmer
     http://www.barometricpressureheadache.com/barometric-pressure-and-weather-conditions/
-    {Storm", "Rain", "Likely rain", "Cloudy, Warmer", "Clearing, Cooler", "Fair"}
+    {"No change", "Storm", "Rain", "Likely rain", "Cloudy, Warmer", "Clearing, Cooler", "Fair"}
       // 0.22 hpa/hour = slow rate
       // 0.17 hpa/hour = steady
       // 0.6 hpa/hour = fast
@@ -306,22 +306,19 @@ void reportStatus() {
     forecast_ts = millis();
     float fcst_diff = hpa - last_hpa;
     last_hpa = hpa;
-    if (fcst_diff < -0.75) {
-      if (hpa < 1006.0) i_forecast = 0;
-      else if (hpa > 1020.0) i_forecast = 3;
-      else i_forecast = 2;
-    } else if (fcst_diff < -0.25) {
+    if (fcst_diff < -0.75) {  // Rapidly falling
       if (hpa < 1006.0) i_forecast = 1;
-      else if (hpa > 1020.0) i_forecast = 5;
-      // else do not change i_forecast;
+      else if (hpa > 1020.0) i_forecast = 4;
+      else i_forecast = 3;
+    } else if (fcst_diff < -0.25) {  // Slowly falling
+      if (hpa < 1006.0) i_forecast = 2;
+      else i_forecast = (hpa > 1020.0)?6:0;
     } else { // Steady or rising
-      if (hpa < 1006.0) i_forecast = 4;
-      else if (hpa > 1020.0) i_forecast = 5;
-      // else do not change i_forecast;
+      if (hpa < 1006.0) i_forecast = 5;
+      else i_forecast = (hpa > 1020.0)?6:0;
     }
 
-    // Sanity check for 1st report, skip reporting to meaningful value.
-    if (CLEARED != i_forecast)  roomNode.setProperty("forecast").setRetained(false).send(forecast_sky[i_forecast]);
+    roomNode.setProperty("forecast").setRetained(false).send(forecast_sky[i_forecast]);
     // roomNode.setProperty("status").setRetained(false).send("fcst_diff=" + String(fcst_diff)+",last_hpa=" + String(last_hpa)+",hpa=" + String(hpa));
   }
   
@@ -461,7 +458,7 @@ void setup() {
   attachInterrupt(digitalPinToInterrupt(PIN_BUTTON), handleBtnDownInt, FALLING);
   attachInterrupt(digitalPinToInterrupt(PIN_PIR), handlePir, RISING);
 
-  Homie_setFirmware("room-sensor", "1.0.6");
+  Homie_setFirmware("room-sensor", "1.0.7");
   // Homie_setBrand("shm");  // homie ???
   // Homie.setResetTrigger(PIN_BUTTON, LOW, 5000);  // Standard 10sec
 
