@@ -105,8 +105,9 @@ void checkStatus() {
   if (!isInterruptEnabled && lastStatus != CLEARED) return;
 
   int r = (relayState) ? 1 : 0;
-  int v = (vSenseIntCnt>PASS_COUNT) ? 2 : 0;
-  int c = (cSenseIntCnt>PASS_COUNT) ? 4 : 0;  // Filter noise: can be few inductive pulses.
+  int pass_count = (relayState)?1:PASS_COUNT;  // Use dynamic criteria: when relay is on every assertion is OK, else skip noise.
+  int v = (vSenseIntCnt>pass_count) ? 2 : 0;
+  int c = (cSenseIntCnt>pass_count) ? 4 : 0;  // Filter noise: can be few inductive pulses.
   if ((v && c) || (millis() - ists) > 5000) {
     disableInterrupts();  // Pause if got measurements or waited too long time (60 sec)
   } else {
@@ -203,7 +204,7 @@ void setup() {
   // pinMode(PIN_BUTTON, INPUT_PULLUP);
   // debouncer.attach(PIN_BUTTON);
   // debouncer.interval(20);
-  Homie_setFirmware("awesome-relay", "1.1.3");
+  Homie_setFirmware("awesome-relay", "1.1.4");
   // Homie_setBrand("shm");  // homie ???
   Homie.setResetTrigger(PIN_BUTTON, LOW, 5000);
 
