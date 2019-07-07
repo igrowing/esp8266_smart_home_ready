@@ -1,4 +1,4 @@
-# ATtiny85 pulse detector.
+# ATtiny85 pulse detector
 
 ## Prolog
 Schieber is constructed/built as self-sufficient device with zero-maintenance. That means it should produce enough electricity for its function.
@@ -32,3 +32,6 @@ ATTiny85 does the job for several uA. Fair enough, does the job.
 * LED signaling is just for visual debug, not must. 3 long blinks on power on.
 * Very short blink on edge changed. Very long blink on LDO/output enabled.
 * 2 blinks when going to sleep. 3 blinks when awaken.  
+
+### Graphical interpretation
+![Smile and Wave](wave.png)
