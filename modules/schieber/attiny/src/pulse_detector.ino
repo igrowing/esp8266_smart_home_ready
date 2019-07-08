@@ -48,15 +48,14 @@ void setup ()  {
 void loop () {
   // Real loop, run until timeout reached
   while (timeout_cnt < TIMEOUT_MAX) {
-    timeout_cnt++;
     byte in = digitalRead(DETECT_IN);
     // Update edge counter if state changed. (blink led too).
     if (last_in != in) {
       last_in = in;
       edge_cnt++;
 //      blink(1, 10);  // TODO: remove due to performance considerations
-      timeout_cnt--;  // Avoid sleep and retriggering of LDO_EN while there are pulses
-    }
+    } else timeout_cnt++;
+    
     // Enable LDO for known time
     if (edge_cnt >= PULSE_DETECT_CNT && !is_fired) {
       is_fired = true;
