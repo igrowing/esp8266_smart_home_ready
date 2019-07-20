@@ -35,3 +35,37 @@ ATTiny85 does the job for several uA. Fair enough, does the job.
 
 ### Graphical interpretation
 ![Smile and Wave](wave.png)
+
+# Power manager with ATtiny85
+
+Power manager is a solution for more complicated problem than just differentiation of single edge change versus multiple pulses.
+The table describes Power manager logic.
+
+ State desc | Power btn pressed | ESP off,  water started | ESP sleeps, water started, unreal case | ESP went to sleep | ESP shuts down | false awake from water | ESP got stuck | powered on. Let ESP to decide when power off 
+ -----------|-------------------|-------------------------|----------------------------------------|-------------------|----------------|------------------------|---------------|----------------------------------------------
+ IO14/btn (IO4) | Rises | no matter? | on | Falls | Falls | no matter? | on | on 
+ Water (IO0) | no matter | >3 edges | >3 edges | no matter | no matter | <3 edges | <3 edges | no matter
+ Self was | sleep | sleep | sleep | wake | wake | sleep | wake | booted 
+ for X ms |  | 3 sec | 3 sec | 10ms | >10ms | 3 sec | 30sec |  
+ since… |  | awaken | awaken |  |  | awaken | last compare | 
+  |  |  |  |  |  |  |  |  
+ action IO2 | on | on | off | none | off | off | off | on 
+ for X ms | 1sec | 1sec | 1sec -> on |  |  |  |  |  
+ action self | no change | no change | no change | sleep | sleep | sleep | sleep | no change
+
+For those who catches text better than table:
+- Ignore single logical level change.
+- When periodic edge change detected (oscillations) drive external LDO.
+- Keep itself in sleep mode for power save, wake on pin change interrupt.
+- ESP signals to ATtiny about power off or sleep mode. 
+  - When Sleep signal sent, keep LDO on and ATtiny off. 
+  - When shutdown signal sent, power off the LDO and itself.
+- Serial prints for text debug.
+
+# How to build/burn the ATtiny85 Digispark
+1. Place ino file in same-name folder.
+1. Prepare Arduino IDE as described: https://digistump.com/wiki/digispark/tutorials/connecting
+1. Open the ino in Arduino. 
+1. Click (=>) button of Arduino IDE to burn the sketch into Digispark.
+1. Insert Digispark into USB port when prompted, not earlier!
+1. Extract Digispark after flashing.
