@@ -31,7 +31,25 @@ The she-bear consists of:
 * Future support: Can accept emergency shut off command from ["leakage detector"](https://github.com/igrowing/esp8266_smart_home_ready/tree/master/modules/leakage_detector).
 
 ## How does it work
-TBD
+Normally, She-bear does nothing. :wink: Even almost does not consume energy from the built-in battery.
+
+### Water
+- When water is starting to run, the She-bear wakes up and counts the water flow.
+- When water stops, the She-bear reports volume and duration of water consumption to your MQTT broker.
+- If water is flowing by half of configured 'maximal duration' or 'maximal volume', the She-Bear sends alert to the MQTT broker. You might take action to locate the source of exaggerated flow.
+- If water flow is exceeded the configured 'maximal duration' or 'maximal volume', the She-Bear closes the main valve (schiber) and sends alert notification to the MQTT broker.
+- Future support: She-bear listens to messages from the 'leakage detectors' at your premises. Once leakage is detected, there is no sense to wait for significant damage in the house. So She-bear closes the valve immediately, even if the thresholds are not exceeded.
+- When the valve is closed, obviously, no water can flow anymore. Therefore, there is no opportunity to the She-bear to awake. So it awakes every hour itself to check MQTT messages. You might configure your smart hub to open the valve. Or you might find and fix the leakage source and then oprn the valve.
+- You can open or close the valve manually anytime by physical buttons.
+
+### Power
+She-bear is designed as zero-maintenance device. It fills its battery from built-in hydrogenerator while water is running. The power source is backed up with solar panel. Just for peace of mind, on every awake the She-bear reports to the MQTT broker the battery status. In case the battery is discharged, the appropriate alert is sent. The scenario when the battery can be discharged is:
+
+1. The She-bear is installed in dark place, no solar energy.
+1. Due to leakage the valve is automatically closed.
+1. During 3-4 weeks no human attention appeared to open the valve.
+
+That's pretty weird case, low probability to happen. So the She-bear is zero-maintenance. Frankly, Li-Ion battery might require replacement every 8-10 years.
 
 ## How to install it
 ### Mechanical mount
