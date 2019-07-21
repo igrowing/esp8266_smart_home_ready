@@ -12,8 +12,8 @@ That's why you need the water control unit AKA Schieber (in German), שיבר (i
 
 ## Description
 The she-bear consists of:
-- Latching Valve - Hydrogenerator - Water flow Hall sensor, connected sequentially.
-- MCU ESP8266 + some electronics.
+- Latching Valve + Hydrogenerator + Water flow Hall sensor, connected sequentially.
+- MCU ESP8266 for main function + MCU ATtiny85 for power management + some electronics.
 - Solar panel as spare energy source.
 - Li-Ion cell as energy storage.
 
@@ -34,11 +34,79 @@ The she-bear consists of:
 TBD
 
 ## How to install it
+### Mechanical mount
 TBD
+
+### Initialization
+Once the firmware is uploaded and the module is powered on, the Homie-xxxxxx AP will appear. It might take a minute or two if you use brand new ESP8266 with unwritten Flash. Homie will format the SPIFFS first.
+
+* Open Homie init portal: http://marvinroger.github.io/homie-esp8266/configurators/v2/
+* Switch your computer or cellphone to that Homie-AP.
+* Look in the portal when the new device will be recognized. This takes 5-25 secs.
+* Follow step-by-step on-screen instructions. DO NOT change the MQTT base name, leave it blank to avoid a bug in Homie. Allow OTA.
+*  Once the setup finished, switch back to your regular network: now you'll Homie reports in your MQTT broker.
+
+Alternatively, [few more methods of initialization explained](https://igrowing.livejournal.com/229070.html).
 
 ## How to control it
 ### Via MQTT
-TBD
+#### Reporting from the She-bear to MQTT broker
+Every time the water is flowing or user presses the Power button, the She-bear publishes some important data to MQTT broker:
+```
+homie/shiber-01/$online true
+homie/shiber-01/shiber/max-seconds 7200        // Configurable longest permitted water flow time
+homie/shiber-01/shiber/max-liters 5000         // Configurable single time permitted water consumption
+homie/shiber-01/shiber/ticks-denom 57          // Configurable divider. Used for conversion of flow sensor ticks to liters. ticks/denom=liters
+homie/shiber-01/shiber/blink-liters 5          // Configurable period of LED blink while water is flowing
+homie/shiber-01/shiber/battery  4.0 V          // Battery voltage report. Helps to monitor whether the charging is enough
+homie/shiber-01/shiber/valve true              // Valve status. Changed by commands - see below.
+homie/shiber-01/$stats/signal 82
+homie/shiber-01/$stats/uptime 8
+homie/shiber-01/shiber/water-seconds 14        // Water consumption report: time
+homie/shiber-01/shiber/water-liters  6.4       // Water consumption report: volume
+homie/shiber-01/shiber/status {"uptime":32,"br":6,"ticks":362,"action":"shutdown"}
+homie/shiber-01/$online false
+```
+
+When valve is close (manually or automatically) the report includes:
+```
+homie/shiber-01/shiber/valve false
+homie/shiber-01/shiber/status {"uptime":15,"br":6,"ticks":0,"action":"sleep"}
+```
+Examples of statuses and alerts:
+```
+homie/shiber-01/shiber/battery  3.2 V
+homie/shiber-01/shiber/alert Low battery
+...
+homie/shiber-01/shiber/alert Failed to write variable to SPIFFS:...
+homie/shiber-01/shiber/alert Valve not found on I2C
+homie/shiber-01/shiber/alert {"reason":"Water is running, shutting off","time":"XXX","liters":"YYY"}
+homie/shiber-01/shiber/alert {"reason":"Water is running","time":"XXX","liters":"YYY"}
+...
+homie/shiber-01/shiber/status Flash cleaned
+```
+
+#### Control via MQTT
+Use ```mosquitto_pub -t <topic> -m <value>``` to control She-bear. The She-bear is receiving commands when it is on: either water running or woke up by Power button.
+
+* Set valve:
+```
+homie/shiber-01/shiber/valve/set true
+homie/shiber-01/shiber/valve/set false
+homie/shiber-01/shiber/valve/set toggle
+```
+After control command the confirmation is sent to the broker:
+```
+homie/shiber-01/shiber/valve false        // or true, depends on command
+```
+* Set thresholds and variables:
+```
+homie/shiber-01/shiber/max-seconds/set 7500
+homie/shiber-01/shiber/max-liters/set 3000
+homie/shiber-01/shiber/ticks-denom/set 58
+homie/shiber-01/shiber/blink-liters/set 7
+```
+See explanation of thresholds and variables in reporting examples.
 
 ### With buttons
 If water is flowing, LED is rarely blinking:
@@ -49,3 +117,8 @@ If No water flow, LED is off:
 * Wait few seconds: LED will blink slowly, then fast.
 * While LED is blinking fast (15 seconds) press the Valve button to toggle the valve.
 
+The She-bear will report to MQTT broker:
+```
+homie/shiber-01/shiber/status Change valve by button
+homie/shiber-01/shiber/valve true          // or false, it's toggle
+```
