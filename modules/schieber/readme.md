@@ -30,6 +30,9 @@ The she-bear consists of:
 * When automatically shut off checks the MQTT messages every hour. Will open the valve if instructed via MQTT.
 * Future support: Can accept emergency shut off command from ["leakage detector"](https://github.com/igrowing/esp8266_smart_home_ready/tree/master/modules/leakage_detector).
 
+![Dirty prototype](she_bear.jpg "She-bear Dirty prototype")
+
+
 ## How does it work
 Normally, She-bear does nothing. :wink: Even almost does not consume energy from the built-in battery.
 
@@ -51,6 +54,13 @@ She-bear is designed as zero-maintenance device. It fills its battery from built
 
 That's pretty weird case, low probability to happen. So the She-bear is zero-maintenance. Frankly, Li-Ion battery might require replacement every 8-10 years.
 
+### WebUI
+TODO:
+* Add Node-Red:
+ * the flow
+ * the flow picture
+ * the UI screenshot
+ 
 ## How to install it
 ### Mechanical mount
 TBD
