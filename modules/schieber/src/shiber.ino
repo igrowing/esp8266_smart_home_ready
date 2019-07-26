@@ -155,6 +155,10 @@ void writeState() {
   f.close();
 }
 
+float get_liters() {
+  return (float)flow_last_ticks / (float)ticks_denom;
+}
+
 /******************************************************************************************
  *     HARDWARE HANDLING FUNCTIONS
  ******************************************************************************************/
@@ -198,7 +202,8 @@ void shutdown() {
 }
 
 void deep_sleep_or_off() {
-  String msg = "{\"uptime\":" +String(millis()/1000)+ ",\"br\":" + String(boot_reason) + ",\"ticks\":" + String(flow_last_ticks);
+  String msg = "{\"uptime\":" + String(millis()/1000) + ",\"liters\":" + f2str(get_liters(), 1) + ",\"br\":" + String(boot_reason) + 
+                ",\"ticks\":" + String(flow_last_ticks)+ ",\"valve\":" + (valve_state ? "true" : "false");
   // No water flow and valve closed => sleep, wait for mqtt commands.
   if (!valve_state) {
     shiberNode.setProperty("status").setRetained(false).send(msg + ",\"action\":\"sleep\"}");
@@ -206,7 +211,6 @@ void deep_sleep_or_off() {
   } else {
     // Valve open or water flown => get ready to be awaken by another flow.
     shiberNode.setProperty("status").setRetained(false).send(msg + ",\"action\":\"shutdown\"}");
-    reportFlow();
     power_timer.attach(0.5, shutdown);
   }
 }
@@ -266,12 +270,12 @@ void check_flow() {
   if (RESET_UINT == flow_started_ts && flow_last_ticks > FLOW_MIN_VALID_TICKS) flow_started_ts = millis(); 
   
   // Calculate current status
-  float liters = (float)flow_last_ticks / (float)ticks_denom;
+  uint32_t liters = (uint32_t)get_liters();
   uint32_t flow_time = millis() - flow_started_ts;
 
   // Blink LED periodically on water flow
-  if ((uint32_t)liters >= flow_last_blink_l + blink_liters) {
-    flow_last_blink_l = (uint32_t)liters;
+  if (liters >= flow_last_blink_l + blink_liters) {
+    flow_last_blink_l = liters;
     blink_led(10, 10);
     blink_times(1);
 #ifdef DEBUG
@@ -283,15 +287,15 @@ void check_flow() {
 
   // Shut off on max consumption
   if (((liters > flow_max_liters) || (flow_time > flow_max_duration_ms)) && !flow_full_alert_reported) {
-    reportFlowAlert("{\"reason\":\"Water is running, shutting off\",\"time\":\"" + String(flow_time / 1000) +
-                    "\",\"liters\":" + f2str(liters, 1) + "\"}");
+    reportFlowAlert("{\"reason\":\"Water is running, shutting off\",\"duration\":\"" + String(flow_time / 1000) +
+                    "\",\"liters\":" + String(liters) + "\"}");
     flow_full_alert_reported = true;
     set_valve(false);
     return;
   }
   // Alert on half consumption
   if (((liters > flow_max_liters / 2.0) || (flow_time > flow_max_duration_ms / 2)) && !flow_half_alert_reported) {
-    reportFlowAlert("{\"reason\":\"Water is running\",\"time\":\"" + String(flow_time / 1000) +
+    reportFlowAlert("{\"reason\":\"Water is running\",\"duration\":\"" + String(flow_time / 1000) +
                     "\",\"liters\":" + f2str(liters, 1) + "\"}");
     flow_half_alert_reported = true;
   }
@@ -307,6 +311,10 @@ void _valve_stop() {
 
 /* Start-stop-report valve status change */
 void set_valve(const bool is_fwd) {
+  if (valve_state == is_fwd) {
+    reportValveStatus();
+    return;
+  }
   valve_state = is_fwd;
   valve.drive((is_fwd)?DRV8830_FORWARD:DRV8830_REVERSE, DRV8830_SPEED_MAX);
   valve_timer.once(0.3, _valve_stop);
@@ -379,34 +387,18 @@ void reportBattery() {
 #endif
 }
 
-/* Report flow no often than once in 2 sec */
-void reportFlow() {
-  if (((millis() < flow_report_ts + 2000) || flow_last_ticks < FLOW_MIN_VALID_TICKS) || flow_full_alert_reported) return;
-
-  flow_report_ts = millis();
-  String dt = String((millis() - flow_started_ts) / 1000);
-  String dl = f2str((float)flow_ticks / (float)ticks_denom, 1);
-  shiberNode.setProperty("water-seconds").setRetained(false).send(dt);
-  shiberNode.setProperty("water-liters").setRetained(false).send(dl);
-#ifdef DEBUG
-  Homie.getLogger() << ">> " << dl << "L in " << dt << "sec" << endl;
-#endif
-}
-
 void reportFlowAlert(String msg) {
   shiberNode.setProperty("alert").setRetained(false).send(msg);
 #ifdef DEBUG
   Homie.getLogger() << ">> Alert: " << msg << endl;
 #endif
-  reportFlow();
 }
 
 // homie/shiber-01/shiber/power/set false
 /* For debug: Force power down the shiber*/
 bool powerHandler(const HomieRange& range, const String& value) {
   if (value != "false") return false;
-  // Do twice. Once isn't enough sometimes :(
-  shutdown();
+
   shutdown();
   return true;
 }
@@ -432,8 +424,11 @@ bool maxLitersHandler(const HomieRange& range, const String& value) {
     return false;
   }
 
-  flow_max_liters = val;
-  storeVariable("flow_max_liters", flow_max_liters); 
+  if (flow_max_liters != val) {  // Avoid Flash wear out
+    flow_max_liters = val;
+    storeVariable("flow_max_liters", flow_max_liters); 
+  }
+  
   shiberNode.setProperty("max-liters").setRetained(false).send(String(flow_max_liters));  // ack back
   return true;
 }
@@ -446,8 +441,11 @@ bool maxSecondsHandler(const HomieRange& range, const String& value) {
     return false;
   }
 
-  flow_max_duration_ms = val;
-  storeVariable("flow_max_duration_ms", flow_max_duration_ms); 
+  if (flow_max_duration_ms != val) {  // Avoid Flash wear out
+    flow_max_duration_ms = val;
+    storeVariable("flow_max_duration_ms", flow_max_duration_ms); 
+    }
+    
   shiberNode.setProperty("max-seconds").setRetained(false).send(String(flow_max_duration_ms / 1000));  // ack back
   return true;
 }
@@ -460,8 +458,10 @@ bool ticksDenomHandler(const HomieRange& range, const String& value) {
     return false;
   }
 
-  ticks_denom = val;
-  storeVariable("ticks_denom", ticks_denom); 
+  if (ticks_denom != val) {  // Avoid Flash wear out
+    ticks_denom = val;
+    storeVariable("ticks_denom", ticks_denom); 
+  }
   shiberNode.setProperty("ticks-denom").setRetained(false).send(String(ticks_denom));  // ack back
   return true;
 }
@@ -474,8 +474,10 @@ bool blinkLitersHandler(const HomieRange& range, const String& value) {
     return false;
   }
 
-  blink_liters = val;
-  storeVariable("blink_liters", blink_liters); 
+  if (blink_liters != val) {  // Avoid Flash wear out
+    blink_liters = val;
+    storeVariable("blink_liters", blink_liters); 
+  }
   shiberNode.setProperty("blink-liters").setRetained(false).send(String(blink_liters));  // ack back
   return true;
 }
@@ -571,17 +573,15 @@ void setup() {
   pinMode(PIN_FLOW, INPUT_PULLUP);
   attachInterrupt(PIN_FLOW, flowInterrupt, RISING);
 
-  Homie_setFirmware("shiber", "1.0.2");
+  Homie_setFirmware("shiber", "1.0.3");
 
   Homie.setSetupFunction(setupHandler).setLoopFunction(loopHandler);
   Homie.setResetTrigger(PIN_BUTTON, LOW, 10000);
   // Homie.disableLedFeedback();
   Homie.setLedPin(PIN_LED, LOW);
   shiberNode.advertise("alert");  // Report problem asserted and deasserted
-  shiberNode.advertise("status");
+  shiberNode.advertise("status"); // json: {"uptime":32,"liters":5.3,"br":6,"ticks":362,"action":"shutdown","valve":true}
   shiberNode.advertise("battery");
-  shiberNode.advertise("water-seconds");
-  shiberNode.advertise("water-liters");
   shiberNode.advertise("valve").settable(valveHandler);  // Report relay is on and off
   shiberNode.advertise("max-liters").settable(maxLitersHandler);  // Set threshold for 'close water' alert
   shiberNode.advertise("max-seconds").settable(maxSecondsHandler);  // Set threshold for 'close water' alert
