@@ -71,14 +71,12 @@ Charts are persistent, so Node-Red restores the data in case of power cycle.
 
 1. Flash wear out on ESP8266 due to often status and settings save. 2 mechanisms impremented: (a) ESP8266 will save the data (variable or status) only in case the data is changed. (b) Node-Red will send change settings commands to She-bear with some delay. If user plays with UI, the commands will be delivered with short delay. This doesn't affect UX and keeps the Flash alive longer.
 1. Switch in UI is too easy to press, even not intentionally. So user confirmation added: Are you sure? No confirmation added to settings: slight change doesn't impact too much. Significant change is intentional.
-1. Node-Red is mostly on, while She-bear is mostly off. So interaction from Node-Red to She-bear is async. Therefore, no==Node-Red sends retained MQTT commands. The retention is removed when Node-Red recives ack of command execution from the She-bear.
+1. Node-Red is mostly on, while She-bear is mostly off. So interaction from Node-Red to She-bear is async. Therefore, Node-Red sends retained MQTT commands. The retention is removed when Node-Red recives ack of command execution from the She-bear.
 1. Node-Red has bar chart with equal-width bars. It's comfortable to see water consumption as bars, however, they are random in time and coming in couples: duration valu and volume value. Therefore, Both values are put on the char as 2 separate series. The problem is every point if connected to next point. This is perceived as constant prolonged water consumption which is wrong. To convert line chart to bar chart, special function "liters and duration" is added. It passes original values of 2 series to the chart node and sends zero values to the same series by 1 second.
 
 TODO:
-* Add Node-Red:
- * the flow
- * the flow picture
- * the UI screenshot
+* Add Node-Red flow
+* the UI screenshot
  
 ## How to install it
 ### Mechanical mount
