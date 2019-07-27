@@ -20,6 +20,7 @@ Queue msg_q(sizeof(Rec), 5, FIFO, true);
 #define PIN_LDO           14
 #define SLEEP_US          3600000000
 uint32_t boot_reason      = RESET_UINT;  // 6 = power on, 5 = awake
+uint32_t boot_time        = RESET_UINT; 
 volatile short vbat_raw   = RESET_UINT;
 #define VBAT_LOW_TRSH     790            // 3.28V
 Ticker power_timer;                      // Use for powering off or sleep
@@ -155,8 +156,12 @@ void writeState() {
   f.close();
 }
 
+/* Calculate volume with consideration of time the shiber was booting and not counting.
+Assume constant water flow. */
 float get_liters() {
-  return (float)flow_last_ticks / (float)ticks_denom;
+  uint32_t uptime = millis();
+  float uptime_liters = (float)flow_last_ticks / (float)ticks_denom;     // measured volume
+  return (float)(uptime + boot_time) * uptime_liters / (float) uptime;   // extrapolated volume
 }
 
 /******************************************************************************************
@@ -167,6 +172,7 @@ void get_boot_reason() {
     rst_info *myResetInfo;
     myResetInfo = ESP.getResetInfoPtr();
     boot_reason = myResetInfo->reason;
+    boot_time = millis();
   }
 
 #ifdef DEBUG
@@ -573,7 +579,7 @@ void setup() {
   pinMode(PIN_FLOW, INPUT_PULLUP);
   attachInterrupt(PIN_FLOW, flowInterrupt, RISING);
 
-  Homie_setFirmware("shiber", "1.0.3");
+  Homie_setFirmware("shiber", "1.0.4");
 
   Homie.setSetupFunction(setupHandler).setLoopFunction(loopHandler);
   Homie.setResetTrigger(PIN_BUTTON, LOW, 10000);
