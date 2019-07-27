@@ -55,6 +55,20 @@ She-bear is designed as zero-maintenance device. It fills its battery from built
 That's pretty weird case, low probability to happen. So the She-bear is zero-maintenance. Frankly, Li-Ion battery might require replacement every 8-10 years.
 
 ### WebUI
+The Node-Red Web UI looks good on computer display and on smartphone. Handy to use. The Web UI is split to 3 groups for comfort of user perception:
+* Status/Control
+* Settings
+* Statistics (WIP)
+
+The Status group contains 2 similar graphs: high resolution and low resolution. This is done to provide clear view of small and large amounts of water consumed. Graphs are synced in time, so if the consumption scales out of low-res chart, it's seen on hi-res chart.
+
+Charts are persistent, so Node-Red restores the data in case of power cycle.
+
+#### Challenges encountered and resolved:
+1. Flash wear out on ESP8266 due to often status and settings save. 2 mechanisms impremented: (a) ESP8266 will save the data (variable or status) only in case the data is changed. (b) Node-Red will send change settings commands to She-bear with some delay. If user plays with UI, the commands will be delivered with short delay. This doesn't affect UX and keeps the Flash alive longer.
+1. Switch in UI is too easy to press, even not intentionally. So user confirmation added: Are you sure? No confirmation added to settings: slight change doesn't impact too much. Significant change is intentional.
+1. Node-Red is mostly on, while She-bear is mostly off. So interaction from Node-Red to She-bear is async. Therefore, no==Node-Red sends retained MQTT commands. The retention is removed when Node-Red recives ack of command execution from the She-bear.
+
 TODO:
 * Add Node-Red:
  * the flow
@@ -92,14 +106,14 @@ homie/shiber-01/$stats/signal 82
 homie/shiber-01/$stats/uptime 8
 homie/shiber-01/shiber/water-seconds 14        // Water consumption report: time
 homie/shiber-01/shiber/water-liters  6.4       // Water consumption report: volume
-homie/shiber-01/shiber/status {"uptime":32,"br":6,"ticks":362,"action":"shutdown"}
+homie/shiber-01/shiber/status {"uptime":32,"liters":5.3,"br":6,"ticks":362,"action":"shutdown","valve":true}
 homie/shiber-01/$online false
 ```
 
 When valve is close (manually or automatically) the report includes:
 ```
 homie/shiber-01/shiber/valve false
-homie/shiber-01/shiber/status {"uptime":15,"br":6,"ticks":0,"action":"sleep"}
+homie/shiber-01/shiber/status {"uptime":32,"liters":0.0,"br":6,"ticks":0,"action":"sleep","valve":true}
 ```
 Examples of statuses and alerts:
 ```
@@ -108,8 +122,8 @@ homie/shiber-01/shiber/alert Low battery
 ...
 homie/shiber-01/shiber/alert Failed to write variable to SPIFFS:...
 homie/shiber-01/shiber/alert Valve not found on I2C
-homie/shiber-01/shiber/alert {"reason":"Water is running, shutting off","time":"XXX","liters":"YYY"}
-homie/shiber-01/shiber/alert {"reason":"Water is running","time":"XXX","liters":"YYY"}
+homie/shiber-01/shiber/alert {"reason":"Water is running, shutting off","duration":"XXX","liters":"YYY"}
+homie/shiber-01/shiber/alert {"reason":"Water is running","duration":"XXX","liters":"YYY"}
 ...
 homie/shiber-01/shiber/status Flash cleaned
 ```
