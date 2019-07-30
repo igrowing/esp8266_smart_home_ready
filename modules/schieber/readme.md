@@ -3,7 +3,7 @@
 ## Why?
 * Did you encounter the case when pipe is broken in the house when you are at work or on vacation? Flooding in the house followed with huge water bill and renovation bill.
 * Did you exit your garden at morning and found that at night one of irrigation pipes diconnected or split? All the garden ruined with water, accompanied with bills.
-* Do you know who's in your famility/guests wasting the most of water in your utility bill?
+* Do you know who's in your family/guests wasting the most of water in your utility bill?
 * You have 2 or more toilets or water-using appliances. Which of them OK and which is spending too much water (can be optimized)?
 * Did your kid forget to close the tap? Is this repeating?
 * Do you care about green future for next generations? Shouldn't people reduce waste of water... starting from yourself?
@@ -77,6 +77,7 @@ Charts are persistent, so Node-Red restores the data in case of power cycle.
 TODO:
 * Add Node-Red flow
 * the UI screenshot
+* UI alert with 'Clear alert' button. Alerting via messaging isn't comprehensive.
  
 ## How to install it
 ### Mechanical mount
