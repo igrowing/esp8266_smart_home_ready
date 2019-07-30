@@ -1,0 +1,796 @@
+[
+    {
+        "id": "bbd5fab7.5855c8",
+        "type": "debug",
+        "z": "f1073339.c03c3",
+        "name": "shiber",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "true",
+        "x": 1070,
+        "y": 1820,
+        "wires": []
+    },
+    {
+        "id": "9fa15d3f.a9d5e",
+        "type": "comment",
+        "z": "f1073339.c03c3",
+        "name": "She-bear, Shiber, Schieber",
+        "info": "",
+        "x": 570,
+        "y": 1620,
+        "wires": []
+    },
+    {
+        "id": "85b977f5.8423c8",
+        "type": "switch",
+        "z": "f1073339.c03c3",
+        "name": "",
+        "property": "topic",
+        "propertyType": "msg",
+        "rules": [
+            {
+                "t": "cont",
+                "v": "online",
+                "vt": "str"
+            },
+            {
+                "t": "regex",
+                "v": "battery$",
+                "vt": "str",
+                "case": true
+            },
+            {
+                "t": "regex",
+                "v": "valve$",
+                "vt": "str",
+                "case": true
+            },
+            {
+                "t": "regex",
+                "v": "max-seconds$",
+                "vt": "str",
+                "case": true
+            },
+            {
+                "t": "regex",
+                "v": "max-liters$",
+                "vt": "str",
+                "case": true
+            },
+            {
+                "t": "regex",
+                "v": "ticks-denom$",
+                "vt": "str",
+                "case": true
+            },
+            {
+                "t": "regex",
+                "v": "blink-liters$",
+                "vt": "str",
+                "case": true
+            },
+            {
+                "t": "cont",
+                "v": "shiber/status",
+                "vt": "str"
+            },
+            {
+                "t": "cont",
+                "v": "signal",
+                "vt": "str"
+            }
+        ],
+        "checkall": "true",
+        "repair": false,
+        "outputs": 9,
+        "x": 230,
+        "y": 1800,
+        "wires": [
+            [],
+            [
+                "d17fb372.58dec"
+            ],
+            [
+                "c4315a11.f897e8",
+                "93a46440.46dbd8"
+            ],
+            [
+                "c8c578cd.e125e8",
+                "93a46440.46dbd8"
+            ],
+            [
+                "713a5636.54c3f8",
+                "93a46440.46dbd8"
+            ],
+            [
+                "2429059c.2cedfa",
+                "93a46440.46dbd8"
+            ],
+            [
+                "4ebad7f1.f080f8",
+                "93a46440.46dbd8"
+            ],
+            [
+                "7d290272.eb655c"
+            ],
+            [
+                "cd2d0d83.9f2f7"
+            ]
+        ]
+    },
+    {
+        "id": "c8c578cd.e125e8",
+        "type": "ui_numeric",
+        "z": "f1073339.c03c3",
+        "name": "",
+        "label": "Max seconds",
+        "tooltip": "Close the valve if water is running longer than \"Max seconds\"",
+        "group": "97f53e26.3b1e6",
+        "order": 3,
+        "width": 0,
+        "height": 0,
+        "passthru": false,
+        "topic": "homie/shiber-01/shiber/max-seconds/set",
+        "format": "{{value}}",
+        "min": "60",
+        "max": "10000",
+        "step": "60",
+        "x": 550,
+        "y": 1800,
+        "wires": [
+            [
+                "882ea7d7.069d18"
+            ]
+        ]
+    },
+    {
+        "id": "4ebad7f1.f080f8",
+        "type": "ui_numeric",
+        "z": "f1073339.c03c3",
+        "name": "",
+        "label": "Blink every X liters",
+        "tooltip": "How often the LED should blink while water is running",
+        "group": "97f53e26.3b1e6",
+        "order": 6,
+        "width": 0,
+        "height": 0,
+        "passthru": false,
+        "topic": "homie/shiber-01/shiber/blink-liters/set",
+        "format": "{{value}}",
+        "min": "1",
+        "max": 10,
+        "step": 1,
+        "x": 570,
+        "y": 1920,
+        "wires": [
+            [
+                "882ea7d7.069d18"
+            ]
+        ]
+    },
+    {
+        "id": "2429059c.2cedfa",
+        "type": "ui_numeric",
+        "z": "f1073339.c03c3",
+        "name": "",
+        "label": "Ticks denom",
+        "tooltip": "Liters = Ticks / Ticks_denom",
+        "group": "97f53e26.3b1e6",
+        "order": 5,
+        "width": 0,
+        "height": 0,
+        "passthru": false,
+        "topic": "homie/shiber-01/shiber/ticks-denom/set",
+        "format": "{{value}}",
+        "min": "40",
+        "max": "500",
+        "step": 1,
+        "x": 550,
+        "y": 1880,
+        "wires": [
+            [
+                "882ea7d7.069d18"
+            ]
+        ]
+    },
+    {
+        "id": "713a5636.54c3f8",
+        "type": "ui_numeric",
+        "z": "f1073339.c03c3",
+        "name": "",
+        "label": "Max liters",
+        "tooltip": "Close the valve if water iconsumed more than \"Max liters\" per time",
+        "group": "97f53e26.3b1e6",
+        "order": 4,
+        "width": 0,
+        "height": 0,
+        "passthru": false,
+        "topic": "homie/shiber-01/shiber/max-liters/set",
+        "format": "{{value}}",
+        "min": "10",
+        "max": "5000",
+        "step": "10",
+        "x": 540,
+        "y": 1840,
+        "wires": [
+            [
+                "882ea7d7.069d18"
+            ]
+        ]
+    },
+    {
+        "id": "8e39b32c.7ef7a",
+        "type": "ui_chart",
+        "z": "f1073339.c03c3",
+        "name": "",
+        "group": "93bf6bca.bc3238",
+        "order": 3,
+        "width": "6",
+        "height": "3",
+        "label": "High consumption",
+        "chartType": "line",
+        "legend": "false",
+        "xformat": "dd HH:mm",
+        "interpolate": "step",
+        "nodata": "No data",
+        "dot": true,
+        "ymin": "10",
+        "ymax": "",
+        "removeOlder": "2",
+        "removeOlderPoints": "",
+        "removeOlderUnit": "86400",
+        "cutout": 0,
+        "useOneColor": false,
+        "colors": [
+            "#1f77b4",
+            "#aec7e8",
+            "#ff7f0e",
+            "#2ca02c",
+            "#98df8a",
+            "#d62728",
+            "#ff9896",
+            "#9467bd",
+            "#c5b0d5"
+        ],
+        "useOldStyle": false,
+        "outputs": 1,
+        "x": 830,
+        "y": 2000,
+        "wires": [
+            [
+                "52b4508e.164ec"
+            ]
+        ]
+    },
+    {
+        "id": "210cb9a6.c15896",
+        "type": "ui_toast",
+        "z": "f1073339.c03c3",
+        "position": "dialog",
+        "displayTime": "3",
+        "highlight": "",
+        "outputs": 1,
+        "ok": "Cancel",
+        "cancel": "OK",
+        "topic": "Are you sure?",
+        "name": "Are you sure?",
+        "x": 720,
+        "y": 1680,
+        "wires": [
+            [
+                "2ae91a5f.34bfb6"
+            ]
+        ]
+    },
+    {
+        "id": "c58ee072.8a123",
+        "type": "ui_switch",
+        "z": "f1073339.c03c3",
+        "name": "",
+        "label": "Valve",
+        "tooltip": "Think twice before click",
+        "group": "93bf6bca.bc3238",
+        "order": 8,
+        "width": "2",
+        "height": "2",
+        "passthru": false,
+        "decouple": "true",
+        "topic": "homie/shiber-01/shiber/valve/set",
+        "style": "",
+        "onvalue": "true",
+        "onvalueType": "bool",
+        "onicon": "invert_colors",
+        "oncolor": "cyan",
+        "offvalue": "false",
+        "offvalueType": "bool",
+        "officon": "format_color_reset",
+        "offcolor": "red",
+        "x": 610,
+        "y": 1740,
+        "wires": [
+            [
+                "210cb9a6.c15896",
+                "2ae91a5f.34bfb6"
+            ]
+        ]
+    },
+    {
+        "id": "c4315a11.f897e8",
+        "type": "change",
+        "z": "f1073339.c03c3",
+        "name": "bool_str2bool",
+        "rules": [
+            {
+                "t": "change",
+                "p": "payload",
+                "pt": "msg",
+                "from": "true",
+                "fromt": "str",
+                "to": "true",
+                "tot": "bool"
+            },
+            {
+                "t": "change",
+                "p": "payload",
+                "pt": "msg",
+                "from": "false",
+                "fromt": "str",
+                "to": "false",
+                "tot": "bool"
+            }
+        ],
+        "action": "",
+        "property": "",
+        "from": "",
+        "to": "",
+        "reg": false,
+        "x": 420,
+        "y": 1740,
+        "wires": [
+            [
+                "c58ee072.8a123"
+            ]
+        ]
+    },
+    {
+        "id": "d17fb372.58dec",
+        "type": "function",
+        "z": "f1073339.c03c3",
+        "name": "msg2number",
+        "func": "var patt = /[\\d\\.]+/ig;\nmsg.payload = msg.payload.match(patt);\nreturn msg;",
+        "outputs": 1,
+        "noerr": 0,
+        "x": 390,
+        "y": 1700,
+        "wires": [
+            [
+                "f4440dfe.d92b8"
+            ]
+        ]
+    },
+    {
+        "id": "cd2d0d83.9f2f7",
+        "type": "ui_gauge",
+        "z": "f1073339.c03c3",
+        "name": "WiFi",
+        "group": "93bf6bca.bc3238",
+        "order": 7,
+        "width": "2",
+        "height": "2",
+        "gtype": "gage",
+        "title": "WiFi",
+        "label": "V",
+        "format": "{{value}}",
+        "min": "0",
+        "max": "100",
+        "colors": [
+            "#b70000",
+            "#e6e600",
+            "#00e600"
+        ],
+        "seg1": "30",
+        "seg2": "60",
+        "x": 370,
+        "y": 1860,
+        "wires": []
+    },
+    {
+        "id": "2223dba2.06e654",
+        "type": "mqtt in",
+        "z": "f1073339.c03c3",
+        "name": "",
+        "topic": "homie/shiber-01/#",
+        "qos": "2",
+        "broker": "2bd2afca.e962e",
+        "x": 110,
+        "y": 1680,
+        "wires": [
+            [
+                "85b977f5.8423c8"
+            ]
+        ]
+    },
+    {
+        "id": "4a545496.f1bcac",
+        "type": "ui_chart",
+        "z": "f1073339.c03c3",
+        "name": "",
+        "group": "93bf6bca.bc3238",
+        "order": 4,
+        "width": "6",
+        "height": "3",
+        "label": "Low consumption",
+        "chartType": "line",
+        "legend": "false",
+        "xformat": "dd HH:mm",
+        "interpolate": "step",
+        "nodata": "No data",
+        "dot": true,
+        "ymin": "",
+        "ymax": "10",
+        "removeOlder": "2",
+        "removeOlderPoints": "",
+        "removeOlderUnit": "86400",
+        "cutout": 0,
+        "useOneColor": false,
+        "colors": [
+            "#008000",
+            "#b5ff6a",
+            "#ff7f0e",
+            "#2ca02c",
+            "#98df8a",
+            "#d62728",
+            "#ff9896",
+            "#9467bd",
+            "#c5b0d5"
+        ],
+        "useOldStyle": false,
+        "outputs": 1,
+        "x": 830,
+        "y": 2040,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "a9baeafb.c6f818",
+        "type": "ui_text",
+        "z": "f1073339.c03c3",
+        "group": "93bf6bca.bc3238",
+        "order": 2,
+        "width": 0,
+        "height": 0,
+        "name": "",
+        "label": "Last report",
+        "format": "{{value}}",
+        "layout": "row-spread",
+        "x": 610,
+        "y": 1960,
+        "wires": []
+    },
+    {
+        "id": "3f24eaf8.aee896",
+        "type": "switch",
+        "z": "f1073339.c03c3",
+        "name": "",
+        "property": "payload.ticks",
+        "propertyType": "msg",
+        "rules": [
+            {
+                "t": "neq",
+                "v": "0",
+                "vt": "str"
+            }
+        ],
+        "checkall": "true",
+        "repair": false,
+        "outputs": 1,
+        "x": 230,
+        "y": 2000,
+        "wires": [
+            [
+                "862595ef.ddca78",
+                "241469d5.ebbf36"
+            ]
+        ]
+    },
+    {
+        "id": "7d290272.eb655c",
+        "type": "json",
+        "z": "f1073339.c03c3",
+        "name": "",
+        "property": "payload",
+        "action": "",
+        "pretty": false,
+        "x": 230,
+        "y": 1960,
+        "wires": [
+            [
+                "3f24eaf8.aee896"
+            ]
+        ]
+    },
+    {
+        "id": "f4440dfe.d92b8",
+        "type": "ui_gauge",
+        "z": "f1073339.c03c3",
+        "name": "",
+        "group": "93bf6bca.bc3238",
+        "order": 6,
+        "width": "2",
+        "height": "2",
+        "gtype": "gage",
+        "title": "Battery",
+        "label": "V",
+        "format": "{{value}}",
+        "min": "3.1",
+        "max": "4.2",
+        "colors": [
+            "#c40000",
+            "#e6e600",
+            "#00d500"
+        ],
+        "seg1": "3.4",
+        "seg2": "3.7",
+        "x": 540,
+        "y": 1700,
+        "wires": []
+    },
+    {
+        "id": "862595ef.ddca78",
+        "type": "function",
+        "z": "f1073339.c03c3",
+        "name": "timestamp",
+        "func": "var now = new Date().toLocaleString(\"ru-RU\");\nreturn {payload: now};",
+        "outputs": 1,
+        "noerr": 0,
+        "x": 410,
+        "y": 1960,
+        "wires": [
+            [
+                "a9baeafb.c6f818"
+            ]
+        ]
+    },
+    {
+        "id": "2ae91a5f.34bfb6",
+        "type": "function",
+        "z": "f1073339.c03c3",
+        "name": "filter_confirm",
+        "func": "/* Keep command until OK or Cancel arrive.\nOn OK pass the command.\nOn Cancel drop the command.\n*/\n\nif (msg.payload === true || msg.payload === false) {\n    context.set(\"cmd\", msg.topic)\n    context.set(msg.topic, msg.payload)\n    node.status({fill:\"yellow\",shape:\"ring\",text: 'got:'+msg.payload+', keep:'+context.get(msg.topic)});\n} else if (context.get(\"cmd\") !== \"\") {\n    var res = {topic: context.get(\"cmd\"), payload: context.get(context.get(\"cmd\"))};\n    context.set(context.get(\"cmd\"), \"\");\n    context.set(\"cmd\", \"\");\n    if (msg.payload == \"OK\") {\n        node.status({fill:\"green\",shape:\"ring\",text: 'got pyl:'+msg.payload+', topic:'+res.topic+', send:' + res.payload});\n        return res;\n    }\n}\nnode.status({fill:\"red\",shape:\"ring\",text: 'got:'+msg.payload+', keep:'+context.get(\"cmd\")});\n",
+        "outputs": 1,
+        "noerr": 0,
+        "x": 850,
+        "y": 1720,
+        "wires": [
+            [
+                "9c690122.3b625",
+                "b1b5a8dc.92db08",
+                "93a46440.46dbd8",
+                "bbd5fab7.5855c8",
+                "2259ba02.3c8816"
+            ]
+        ]
+    },
+    {
+        "id": "241469d5.ebbf36",
+        "type": "function",
+        "z": "f1073339.c03c3",
+        "name": "liters and duration",
+        "func": "// sleep time expects milliseconds\nfunction sleep (time) {\n  return new Promise((resolve) => setTimeout(resolve, time));\n}\n\nvar msg1, msg2;\n\nmsg1 = {topic: \"seconds\", payload: msg.payload.uptime};\nmsg2 = {topic: \"liters\", payload: msg.payload.liters};\n\nnode.send([msg1, msg2]);\nsleep(1000).then(() => {\n  msg1 = {topic: \"seconds\", payload: 0};\n  msg2 = {topic: \"liters\", payload: 0};\n  return [msg1, msg2];\n});\n",
+        "outputs": 2,
+        "noerr": 0,
+        "x": 410,
+        "y": 2000,
+        "wires": [
+            [
+                "71a47ab1.c79ee4"
+            ],
+            [
+                "71a47ab1.c79ee4"
+            ]
+        ]
+    },
+    {
+        "id": "71a47ab1.c79ee4",
+        "type": "trigger",
+        "z": "f1073339.c03c3",
+        "op1": "",
+        "op2": "0",
+        "op1type": "pay",
+        "op2type": "num",
+        "duration": "1",
+        "extend": false,
+        "units": "s",
+        "reset": "",
+        "bytopic": "topic",
+        "name": "",
+        "x": 600,
+        "y": 2000,
+        "wires": [
+            [
+                "8e39b32c.7ef7a",
+                "4a545496.f1bcac"
+            ]
+        ]
+    },
+    {
+        "id": "d421924.5764f7",
+        "type": "comment",
+        "z": "f1073339.c03c3",
+        "name": "Trigger zeroes values after each message. This creates time-spread columns",
+        "info": "",
+        "x": 430,
+        "y": 2040,
+        "wires": []
+    },
+    {
+        "id": "9c690122.3b625",
+        "type": "mqtt out",
+        "z": "f1073339.c03c3",
+        "name": "Retain MQTT",
+        "topic": "",
+        "qos": "",
+        "retain": "true",
+        "broker": "2bd2afca.e962e",
+        "x": 1080,
+        "y": 1740,
+        "wires": []
+    },
+    {
+        "id": "882ea7d7.069d18",
+        "type": "delay",
+        "z": "f1073339.c03c3",
+        "name": "",
+        "pauseType": "timed",
+        "timeout": "5",
+        "timeoutUnits": "seconds",
+        "rate": "1",
+        "nbRateUnits": "3",
+        "rateUnits": "second",
+        "randomFirst": "1",
+        "randomLast": "5",
+        "randomUnits": "seconds",
+        "drop": true,
+        "x": 830,
+        "y": 1840,
+        "wires": [
+            [
+                "bbd5fab7.5855c8",
+                "9c690122.3b625",
+                "93a46440.46dbd8",
+                "2259ba02.3c8816"
+            ]
+        ]
+    },
+    {
+        "id": "b1b5a8dc.92db08",
+        "type": "ui_toast",
+        "z": "f1073339.c03c3",
+        "position": "top right",
+        "displayTime": "5",
+        "highlight": "yellow",
+        "outputs": 0,
+        "ok": "Cancel",
+        "cancel": "OK",
+        "topic": "Your command accepted. The valve state will be updated when She-bear awaken",
+        "name": "",
+        "x": 1080,
+        "y": 1700,
+        "wires": []
+    },
+    {
+        "id": "93a46440.46dbd8",
+        "type": "function",
+        "z": "f1073339.c03c3",
+        "name": "Release retention",
+        "func": "/* When valve status == recent valve command, \nsend empty command retained. This cleans retention.*/\nnode.status({fill:\"yellow\",shape:\"ring\",text: 'got:'+msg.topic+'['+msg.payload+'], keep:'+context.get(msg.topic)});\n\nif (msg.topic.indexOf(\"/set\") !== -1) { // Snap command request\n    context.set(msg.topic, msg.payload);\n    node.status({fill:\"yellow\",shape:\"ring\",text: 'got:'+msg.topic+'['+msg.payload+'], keep:'+context.get(msg.topic)});\n    return;\n} else { // Compare snapped command with actual status\n    msg.topic += \"/set\";\n    if (context.get(msg.topic) !== undefined && msg.payload.toString() === context.get(msg.topic).toString()) {\n        node.status({fill:\"green\",shape:\"ring\",text: 'got/sending:'+msg.topic+'(null), kept:'+context.get(msg.topic)});\n        context.set(msg.topic, \"\");\n        msg.payload = \"\";  // Empty payload of retained message cleans the retention\n        return msg;\n    }    \n}\nnode.status({fill:\"red\",shape:\"ring\",text:'got:'+msg.topic+'['+msg.payload+'], kept:'+context.get(msg.topic)});\n",
+        "outputs": 1,
+        "noerr": 0,
+        "x": 831.0000057220459,
+        "y": 1774.0000400543213,
+        "wires": [
+            [
+                "bbd5fab7.5855c8",
+                "9c690122.3b625",
+                "2259ba02.3c8816"
+            ]
+        ]
+    },
+    {
+        "id": "2259ba02.3c8816",
+        "type": "link out",
+        "z": "f1073339.c03c3",
+        "name": "",
+        "links": [
+            "ae194ef3.93e8"
+        ],
+        "x": 1055,
+        "y": 1780,
+        "wires": []
+    },
+    {
+        "id": "52b4508e.164ec",
+        "type": "persist in",
+        "z": "f1073339.c03c3",
+        "name": "water_consumption",
+        "storageNode": "3b889eef.2f37a2",
+        "x": 1030,
+        "y": 2000,
+        "wires": []
+    },
+    {
+        "id": "ec175fce.0f359",
+        "type": "persist out",
+        "z": "f1073339.c03c3",
+        "name": "water_consumption",
+        "storageNode": "3b889eef.2f37a2",
+        "x": 820,
+        "y": 1960,
+        "wires": [
+            [
+                "8e39b32c.7ef7a",
+                "4a545496.f1bcac"
+            ]
+        ]
+    },
+    {
+        "id": "97f53e26.3b1e6",
+        "type": "ui_group",
+        "z": "",
+        "name": "She-bear: settings",
+        "tab": "fd92601d.1a632",
+        "order": 8,
+        "disp": true,
+        "width": "6",
+        "collapse": true
+    },
+    {
+        "id": "93bf6bca.bc3238",
+        "type": "ui_group",
+        "z": "",
+        "name": "She-bear: status",
+        "tab": "fd92601d.1a632",
+        "order": 7,
+        "disp": true,
+        "width": "6",
+        "collapse": false
+    },
+    {
+        "id": "2bd2afca.e962e",
+        "type": "mqtt-broker",
+        "z": "",
+        "name": "",
+        "broker": "localhost",
+        "port": "1883",
+        "clientid": "",
+        "usetls": false,
+        "compatmode": true,
+        "keepalive": "60",
+        "cleansession": true,
+        "birthTopic": "",
+        "birthQos": "0",
+        "birthPayload": "",
+        "willTopic": "",
+        "willQos": "0",
+        "willPayload": ""
+    },
+    {
+        "id": "3b889eef.2f37a2",
+        "type": "persist-store",
+        "z": "",
+        "filename": "water_consumption.json",
+        "interval": "7200"
+    },
+    {
+        "id": "fd92601d.1a632",
+        "type": "ui_tab",
+        "z": "",
+        "name": "Garden",
+        "icon": "local_florist",
+        "order": 2
+    }
+]
