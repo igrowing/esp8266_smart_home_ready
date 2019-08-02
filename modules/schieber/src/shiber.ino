@@ -241,16 +241,16 @@ void delayed_init() {
 #endif
   }
 
-  // LED on till ready for user interaction
-  if (flow_ticks <= FLOW_MIN_VALID_TICKS) {
-    // Not actual timer needed. Just lock the timer to signal to check_flow "the human activated state"
-    power_timer.once(15.0, deep_sleep_or_off);  
-#ifdef DEBUG
-    Rec r = {"status", "awaken by human or after sleep, led on"};
-    msg_q.push(&r);
-    Homie.getLogger() << ">> Awaken by human" << endl;
-#endif
-  }
+//   // LED on till ready for user interaction
+//   if (flow_ticks <= FLOW_MIN_VALID_TICKS) {
+//     // Not actual timer needed. Just lock the timer to signal to check_flow "the human activated state"
+//     power_timer.once(15.0, deep_sleep_or_off);  
+// #ifdef DEBUG
+//     Rec r = {"status", "awaken by human or after sleep, led on"};
+//     msg_q.push(&r);
+//     Homie.getLogger() << ">> Awaken by human" << endl;
+// #endif
+//   }
 
 #ifdef DEBUG
   Rec r = {"status", "flow check start"};
@@ -541,6 +541,7 @@ void setupHandler() {
 }
 
 void loopHandler() {
+  // Treat 'Valve' button
   debouncer.update();
   if (debouncer.read() == LOW) {  // LED on while button pressed 
     blink_led(200, 5);  
@@ -579,7 +580,7 @@ void setup() {
   pinMode(PIN_FLOW, INPUT_PULLUP);
   attachInterrupt(PIN_FLOW, flowInterrupt, RISING);
 
-  Homie_setFirmware("shiber", "1.0.4");
+  Homie_setFirmware("shiber", "1.0.5");
 
   Homie.setSetupFunction(setupHandler).setLoopFunction(loopHandler);
   Homie.setResetTrigger(PIN_BUTTON, LOW, 10000);
