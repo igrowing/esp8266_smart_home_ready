@@ -81,7 +81,14 @@ TODO:
  
 ## How to install it
 ### Mechanical mount
-TBD
+![Proposal of She-bear mount](shiber_mount.jpg "Proposal of She-bear mount")
+Although She-bear itself is a valve and there is water provider valve outside of house, I preferred to add one more valve in my premises. That serves my comfort in emergency case. Likely I will never touch it thus :)
+
+When mounting She-Bear add some support. It weighs about 600g, not that much. Maybe this is negiligible weight for metal pipes. However, I added support to reduce load on my plastic pipes.
+
+Use pipe seling (teflon, plumber's) tape generously.
+
+Hard times are in winter: no garden irrigation needed and short days. This means no charging from water flow and not from the sunlight. Likely, I will make remote solar panel for She-bear...
 
 ### Initialization
 Once the firmware is uploaded and the module is powered on, the Homie-xxxxxx AP will appear. It might take a minute or two if you use brand new ESP8266 with unwritten Flash. Homie will format the SPIFFS first.
