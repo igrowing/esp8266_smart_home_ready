@@ -40,6 +40,7 @@ Ticker pumpAlertTimer;
 Ticker distanceAlertTimer;
 Ticker distanceTimer;
 Ticker relayTimer;
+Ticker reportTimer;
 
 HomieNode pumpControlNode("pump", "controller");
 
@@ -181,7 +182,11 @@ bool distanceHandler(const HomieRange& range, const String& value) {
   pumpControlNode.setProperty("distance-threshold").setRetained(false).send(String(dist_trsh));  // ack back
   return true;
 }
- 
+
+void distanceTrshReport() {
+  pumpControlNode.setProperty("distance-threshold").setRetained(false).send(String(dist_trsh));
+} 
+
 // Report MQTT alert asserted and deasserted
 void alertPump() {
   // If alert triggered (not detached) then we're in trouble. Treat the pump first.
@@ -215,6 +220,7 @@ void setupHandler() {
   distanceTimer.attach(60.0, read_distance);      // Start reading distance.
   adcTimer.once(30.0, runAdc);                    // Let some time to calm down after boot.
   pumpAlertTimer.once(20.0, reportRelayStatus);   // Inform UI about initial relay status.
+  reportTimer.attach(59.0, distanceTrshReport);
   // TODO: find better place/logic to clean alert in loop, not in setup.
   pumpControlNode.setProperty("alert").setRetained(false).send("booted");  // Clean retained alerts on MQTT broker
 }
@@ -278,7 +284,7 @@ void setup() {
   pinMode(PIN_ECHO, INPUT);
   digitalWrite(PIN_RELAY, HIGH);
 
-  Homie_setFirmware("pump-control", "1.0.4");
+  Homie_setFirmware("pump-control", "1.0.5");
 
   Homie.setSetupFunction(setupHandler).setLoopFunction(loopHandler);
   // Homie.setResetTrigger(PIN_BUTTON, LOW, 5000);
