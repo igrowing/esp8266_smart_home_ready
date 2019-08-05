@@ -1,5 +1,28 @@
 # Schieber: sentry of your water bill
 
+<!-- TOC depthFrom:2 -->
+
+- [Why?](#why)
+- [Description](#description)
+    - [Features](#features)
+- [How does it work](#how-does-it-work)
+    - [Water](#water)
+    - [Power](#power)
+    - [WebUI](#webui)
+        - [Challenges encountered and resolved:](#challenges-encountered-and-resolved)
+- [How to install it](#how-to-install-it)
+    - [Mechanical mount](#mechanical-mount)
+    - [Initialization](#initialization)
+- [How to use the She-bear](#how-to-use-the-she-bear)
+    - [Via Web-UI](#via-web-ui)
+    - [Via MQTT](#via-mqtt)
+        - [Reporting from the She-bear to MQTT broker](#reporting-from-the-she-bear-to-mqtt-broker)
+        - [Control via MQTT](#control-via-mqtt)
+    - [Control with buttons](#control-with-buttons)
+- [Discussion](#discussion)
+
+<!-- /TOC -->
+
 ## Why?
 * Did you encounter the case when pipe is broken in the house when you are at work or on vacation? Flooding in the house followed with huge water bill and renovation bill.
 * Did you exit your garden at morning and found that at night one of irrigation pipes diconnected or split? All the garden ruined with water, accompanied with bills.
@@ -21,9 +44,9 @@ The she-bear consists of:
 * Easy to install.
 * Zero-maintenance. Fills the battery from water flow and from solar energy.
 * Counts and reports water consumption via MQTT.
-* Checks configurable amount of water and duration of single run.
-* Alerts when amount or duration consumed by half.
-* Shuts water off when amount or duration exceeded configured threshold.
+* Checks configurable volume of water and duration of single run.
+* Alerts when volume or duration consumed by half.
+* Shuts water off when volume or duration exceeded configured threshold.
 * Configurable LED blink period while water is running.
 * 2 button control: one button to awake the Schieber, other button to toggle the valve.
 * MQTT control of the valve: open/close/toggle.
@@ -101,7 +124,21 @@ Once the firmware is uploaded and the module is powered on, the Homie-xxxxxx AP 
 
 Alternatively, [few more methods of initialization explained](https://igrowing.livejournal.com/229070.html).
 
-## How to control it
+## How to use the She-bear
+### Via Web-UI
+![She-bear UI](shiber_ui.png "Main She-bear UI group")
+
+The status UI group contains 6 reporting widgets and only 1 controlling:
+- Last report time/date
+- High and low resolution charts. Hold mouse over bars to see the duration and volume of water. Both charts are synchronized by time.
+- Battery level. Helps you to see when bettery is going to die. Not expected... just for sanity.
+- WiFi level. For sanity too.
+- Valve. Cyan = valve open. Red = valve closed. This is status and control. Click on the Valve will pop confirmation "Are you sure?" up. Affirmative response will port the Valve change status to MQTT. Next time the water is running or Power button is pressed (and She-bear is on) the Valve will apply the sent command and update the UI.
+
+![She-bear settings](shiber_settings.png "She-bear Settings UI group")
+
+Settings group is usually collapsed. You can open it and set your preference for active action of the She-bear. As well, you can clibrate the volume measurement with "Ticks denom". And how often you want to see LED blinking while water is running. Next time the water is running or Power button is pressed (and She-bear is on) the changes will be applied to She-bear.
+
 ### Via MQTT
 #### Reporting from the She-bear to MQTT broker
 Every time the water is flowing or user presses the Power button, the She-bear publishes some important data to MQTT broker:
@@ -161,7 +198,7 @@ homie/shiber-01/shiber/blink-liters/set 7
 ```
 See explanation of thresholds and variables in reporting examples.
 
-### With buttons
+### Control with buttons
 If water is flowing, LED is rarely blinking:
 * Press Valve button to toggle the valve. Expect LED stopped blinking.
   
@@ -175,3 +212,37 @@ The She-bear will report to MQTT broker:
 homie/shiber-01/shiber/status Change valve by button
 homie/shiber-01/shiber/valve true          // or false, it's toggle
 ```
+
+## Discussion
+
+**Reed vs. Hall**
+
+Max. throughput of the flow meter is 30L/min. 1 L is more than 400 ticks of the sensor. This sets up to 0.5L/sec, more than 200 Hz ticks, 5ms/period of tick.
+This is not big deal for Hall sensor to provide 200Hz, usually ticking at hundreds kHz.
+For reed switch response time is mostly less than 0.5ms + release time 0.1ms. It is possible to find reed switch less than 5mm, not cheap thus. So reed is slower than hall, however, good enough for measuring water flow application.
+
+Advantages of reed switch vs. hall:
+- 2 wires only vs. 3.
+- Lower current consumption.
+- Works at any voltage vs. minimal required voltage.
+
+Advantages of hall vs. reed:
+- No moving parts.
+- Better sensitivity.
+- Cheaper.
+- Smaller.
+- Not fragile.
+
+**Periodic reporting vs. Summary**
+
+About periodic reporting:
+- [+] Reporting volume of water periodically (every X seconds) is easy to represent it at chart.
+- [-] Consumes about 3 times more current for every report than normal counting in the background.
+- [+] Allows to track water flow speed change during single usage.
+- [-] Every single report is considered to be stored in the DB. More SD card access, more storage volume in use. Can be aggregated for storage on account of the same harder charting as Summary reporting.
+
+About summary reporting:
+- [-] Harder to read/understand report: duration and total volume is provided. Harder to chart it.
+- [+] Consumes less power.
+- [-] Can't track water speed changes.
+- [+] Requires less storage for data recording.
