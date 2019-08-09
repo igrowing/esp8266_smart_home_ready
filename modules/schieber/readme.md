@@ -109,7 +109,7 @@ Although She-bear itself is a valve and there is water provider valve outside of
 
 When mounting She-Bear add some support. It weighs about 600g, not that much. Maybe this is negiligible weight for metal pipes. However, I added support to reduce load on my plastic pipes.
 
-Use pipe seling (teflon, plumber's) tape generously.
+Use pipe sealing (teflon, plumber's) tape generously.
 
 Hard times are in winter: no garden irrigation needed and short days. This means no charging from water flow and not from the sunlight. Likely, I will make remote solar panel for She-bear...
 
@@ -232,6 +232,12 @@ Advantages of hall vs. reed:
 - Cheaper.
 - Smaller.
 - Not fragile.
+
+As result, I replaced the Hall with Reed.
+
+![Improvement of water sensor](hall2reed_.jpg "Water sensor modification")
+
+After replacement re-calibration was required. Reed ticks faster than Hall. Measurement with Reed are more consistent and reliable so far. No circuitry/firmware change was needed. However, maybe ATtiny may be removed now. TBD...
 
 **Periodic reporting vs. Summary**
 
