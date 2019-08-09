@@ -24,6 +24,8 @@ uint32_t boot_time        = RESET_UINT;
 volatile short vbat_raw   = RESET_UINT;
 #define VBAT_LOW_TRSH     790            // 3.28V
 Ticker power_timer;                      // Use for powering off or sleep
+bool setup_done = false;
+Ticker setup_timer;
 
 /*******  Valve related variables    *******/
 bool valve_state;
@@ -159,9 +161,7 @@ void writeState() {
 /* Calculate volume with consideration of time the shiber was booting and not counting.
 Assume constant water flow. */
 float get_liters() {
-  uint32_t uptime = millis();
-  float uptime_liters = (float)flow_last_ticks / (float)ticks_denom;     // measured volume
-  return (float)(uptime + boot_time) * uptime_liters / (float) uptime;   // extrapolated volume
+  return (float)flow_last_ticks / (float)ticks_denom;     // measured volume
 }
 
 /******************************************************************************************
@@ -208,6 +208,12 @@ void shutdown() {
 }
 
 void deep_sleep_or_off() {
+  // Wait until all settings restored in setupHandler
+  if (! setup_done) {
+    setup_timer.once(3.0, deep_sleep_or_off);
+    return;
+  }
+
   String msg = "{\"uptime\":" + String(millis()/1000) + ",\"liters\":" + f2str(get_liters(), 1) + ",\"br\":" + String(boot_reason) + 
                 ",\"ticks\":" + String(flow_last_ticks)+ ",\"valve\":" + (valve_state ? "true" : "false");
   // No water flow and valve closed => sleep, wait for mqtt commands.
@@ -537,7 +543,7 @@ void setupHandler() {
     blink_for(15000);
     power_timer.once(15.0, deep_sleep_or_off);
   }
-
+  setup_done = true;
 }
 
 void loopHandler() {
@@ -580,7 +586,7 @@ void setup() {
   pinMode(PIN_FLOW, INPUT_PULLUP);
   attachInterrupt(PIN_FLOW, flowInterrupt, RISING);
 
-  Homie_setFirmware("shiber", "1.0.5");
+  Homie_setFirmware("shiber", "1.0.6");
 
   Homie.setSetupFunction(setupHandler).setLoopFunction(loopHandler);
   Homie.setResetTrigger(PIN_BUTTON, LOW, 10000);
