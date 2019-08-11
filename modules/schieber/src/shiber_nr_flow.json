@@ -19,7 +19,7 @@
         "z": "f1073339.c03c3",
         "name": "She-bear, Shiber, Schieber",
         "info": "",
-        "x": 570,
+        "x": 430,
         "y": 1620,
         "wires": []
     },
@@ -86,7 +86,7 @@
         "checkall": "true",
         "repair": false,
         "outputs": 9,
-        "x": 230,
+        "x": 110,
         "y": 1800,
         "wires": [
             [],
@@ -117,7 +117,8 @@
                 "7d290272.eb655c"
             ],
             [
-                "cd2d0d83.9f2f7"
+                "cd2d0d83.9f2f7",
+                "35644641.efd94a"
             ]
         ]
     },
@@ -186,7 +187,7 @@
         "topic": "homie/shiber-01/shiber/ticks-denom/set",
         "format": "{{value}}",
         "min": "40",
-        "max": "500",
+        "max": "1500",
         "step": 1,
         "x": 550,
         "y": 1880,
@@ -237,7 +238,7 @@
         "interpolate": "step",
         "nodata": "No data",
         "dot": true,
-        "ymin": "10",
+        "ymin": "100",
         "ymax": "",
         "removeOlder": "2",
         "removeOlderPoints": "",
@@ -257,7 +258,7 @@
         ],
         "useOldStyle": false,
         "outputs": 1,
-        "x": 830,
+        "x": 890,
         "y": 2000,
         "wires": [
             [
@@ -278,7 +279,7 @@
         "topic": "Are you sure?",
         "name": "Are you sure?",
         "x": 720,
-        "y": 1680,
+        "y": 1640,
         "wires": [
             [
                 "2ae91a5f.34bfb6"
@@ -308,8 +309,8 @@
         "offvalueType": "bool",
         "officon": "format_color_reset",
         "offcolor": "red",
-        "x": 610,
-        "y": 1740,
+        "x": 590,
+        "y": 1680,
         "wires": [
             [
                 "210cb9a6.c15896",
@@ -348,7 +349,7 @@
         "to": "",
         "reg": false,
         "x": 420,
-        "y": 1740,
+        "y": 1680,
         "wires": [
             [
                 "c58ee072.8a123"
@@ -359,15 +360,16 @@
         "id": "d17fb372.58dec",
         "type": "function",
         "z": "f1073339.c03c3",
-        "name": "msg2number",
-        "func": "var patt = /[\\d\\.]+/ig;\nmsg.payload = msg.payload.match(patt);\nreturn msg;",
+        "name": "msg2number&last_word",
+        "func": "var patt = /[\\d\\.]+/ig;\nmsg.payload = parseFloat(msg.payload.match(patt));\nmsg.topic = msg.topic.split('/').slice(-1)[0];\nreturn msg;",
         "outputs": 1,
         "noerr": 0,
         "x": 390,
-        "y": 1700,
+        "y": 1740,
         "wires": [
             [
-                "f4440dfe.d92b8"
+                "f4440dfe.d92b8",
+                "601f2c0b.805cc4"
             ]
         ]
     },
@@ -393,8 +395,8 @@
         ],
         "seg1": "30",
         "seg2": "60",
-        "x": 370,
-        "y": 1860,
+        "x": 230,
+        "y": 1920,
         "wires": []
     },
     {
@@ -430,7 +432,7 @@
         "nodata": "No data",
         "dot": true,
         "ymin": "",
-        "ymax": "10",
+        "ymax": "100",
         "removeOlder": "2",
         "removeOlderPoints": "",
         "removeOlderUnit": "86400",
@@ -449,7 +451,7 @@
         ],
         "useOldStyle": false,
         "outputs": 1,
-        "x": 830,
+        "x": 890,
         "y": 2040,
         "wires": [
             []
@@ -535,8 +537,8 @@
         ],
         "seg1": "3.4",
         "seg2": "3.7",
-        "x": 540,
-        "y": 1700,
+        "x": 600,
+        "y": 1740,
         "wires": []
     },
     {
@@ -564,7 +566,7 @@
         "outputs": 1,
         "noerr": 0,
         "x": 850,
-        "y": 1720,
+        "y": 1680,
         "wires": [
             [
                 "9c690122.3b625",
@@ -580,8 +582,8 @@
         "type": "function",
         "z": "f1073339.c03c3",
         "name": "liters and duration",
-        "func": "// sleep time expects milliseconds\nfunction sleep (time) {\n  return new Promise((resolve) => setTimeout(resolve, time));\n}\n\nvar msg1, msg2;\n\nmsg1 = {topic: \"seconds\", payload: msg.payload.uptime};\nmsg2 = {topic: \"liters\", payload: msg.payload.liters};\n\nnode.send([msg1, msg2]);\nsleep(1000).then(() => {\n  msg1 = {topic: \"seconds\", payload: 0};\n  msg2 = {topic: \"liters\", payload: 0};\n  return [msg1, msg2];\n});\n",
-        "outputs": 2,
+        "func": "/* Outputs:\n1- duration\n2- volume\n3- object for InfluxDB\n*/\n\n// sleep time expects milliseconds\nfunction sleep (time) {\n  return new Promise((resolve) => setTimeout(resolve, time));\n}\n\nvar msg1, msg2;\n\nmsg1 = {topic: \"seconds\", payload: msg.payload.uptime};\nmsg2 = {topic: \"liters\", payload: msg.payload.liters};\nmsg3 = {payload: {liters: msg.payload.liters, seconds: msg.payload.uptime}};\n\nnode.send([msg1, msg2, msg3]);\nsleep(1000).then(() => {\n  msg1 = {topic: \"seconds\", payload: 0};\n  msg2 = {topic: \"liters\", payload: 0};\n  return [msg1, msg2, null];\n});\n",
+        "outputs": 3,
         "noerr": 0,
         "x": 410,
         "y": 2000,
@@ -591,6 +593,9 @@
             ],
             [
                 "71a47ab1.c79ee4"
+            ],
+            [
+                "228c34f0.49ba8c"
             ]
         ]
     },
@@ -608,7 +613,7 @@
         "reset": "",
         "bytopic": "topic",
         "name": "",
-        "x": 600,
+        "x": 680,
         "y": 2000,
         "wires": [
             [
@@ -623,7 +628,7 @@
         "z": "f1073339.c03c3",
         "name": "Trigger zeroes values after each message. This creates time-spread columns",
         "info": "",
-        "x": 430,
+        "x": 490,
         "y": 2040,
         "wires": []
     },
@@ -690,8 +695,8 @@
         "func": "/* When valve status == recent valve command, \nsend empty command retained. This cleans retention.*/\nnode.status({fill:\"yellow\",shape:\"ring\",text: 'got:'+msg.topic+'['+msg.payload+'], keep:'+context.get(msg.topic)});\n\nif (msg.topic.indexOf(\"/set\") !== -1) { // Snap command request\n    context.set(msg.topic, msg.payload);\n    node.status({fill:\"yellow\",shape:\"ring\",text: 'got:'+msg.topic+'['+msg.payload+'], keep:'+context.get(msg.topic)});\n    return;\n} else { // Compare snapped command with actual status\n    msg.topic += \"/set\";\n    if (context.get(msg.topic) !== undefined && msg.payload.toString() === context.get(msg.topic).toString()) {\n        node.status({fill:\"green\",shape:\"ring\",text: 'got/sending:'+msg.topic+'(null), kept:'+context.get(msg.topic)});\n        context.set(msg.topic, \"\");\n        msg.payload = \"\";  // Empty payload of retained message cleans the retention\n        return msg;\n    }    \n}\nnode.status({fill:\"red\",shape:\"ring\",text:'got:'+msg.topic+'['+msg.payload+'], kept:'+context.get(msg.topic)});\n",
         "outputs": 1,
         "noerr": 0,
-        "x": 831.0000057220459,
-        "y": 1774.0000400543213,
+        "x": 770,
+        "y": 1780,
         "wires": [
             [
                 "bbd5fab7.5855c8",
@@ -718,7 +723,7 @@
         "z": "f1073339.c03c3",
         "name": "water_consumption",
         "storageNode": "3b889eef.2f37a2",
-        "x": 1030,
+        "x": 1090,
         "y": 2000,
         "wires": []
     },
@@ -728,7 +733,7 @@
         "z": "f1073339.c03c3",
         "name": "water_consumption",
         "storageNode": "3b889eef.2f37a2",
-        "x": 820,
+        "x": 880,
         "y": 1960,
         "wires": [
             [
@@ -738,12 +743,69 @@
         ]
     },
     {
+        "id": "601f2c0b.805cc4",
+        "type": "join",
+        "z": "f1073339.c03c3",
+        "name": "Merge 2msgs",
+        "mode": "custom",
+        "build": "object",
+        "property": "payload",
+        "propertyType": "msg",
+        "key": "topic",
+        "joiner": "\\n",
+        "joinerType": "str",
+        "accumulate": false,
+        "timeout": "",
+        "count": "2",
+        "reduceRight": false,
+        "reduceExp": "",
+        "reduceInit": "",
+        "reduceInitType": "",
+        "reduceFixup": "",
+        "x": 800,
+        "y": 1900,
+        "wires": [
+            [
+                "228c34f0.49ba8c"
+            ]
+        ]
+    },
+    {
+        "id": "228c34f0.49ba8c",
+        "type": "influxdb out",
+        "z": "f1073339.c03c3",
+        "influxdb": "7270567d.341408",
+        "name": "",
+        "measurement": "shiber",
+        "precision": "s",
+        "retentionPolicy": "",
+        "x": 1040,
+        "y": 1900,
+        "wires": []
+    },
+    {
+        "id": "35644641.efd94a",
+        "type": "function",
+        "z": "f1073339.c03c3",
+        "name": "msg2number&last_word",
+        "func": "var patt = /[\\d\\.]+/ig;\nmsg.payload = parseInt(msg.payload.match(patt));\nmsg.topic = msg.topic.split('/').slice(-1)[0];\n\nreturn msg;",
+        "outputs": 1,
+        "noerr": 0,
+        "x": 310,
+        "y": 1880,
+        "wires": [
+            [
+                "601f2c0b.805cc4"
+            ]
+        ]
+    },
+    {
         "id": "97f53e26.3b1e6",
         "type": "ui_group",
         "z": "",
         "name": "She-bear: settings",
         "tab": "fd92601d.1a632",
-        "order": 8,
+        "order": 5,
         "disp": true,
         "width": "6",
         "collapse": true
@@ -754,7 +816,7 @@
         "z": "",
         "name": "She-bear: status",
         "tab": "fd92601d.1a632",
-        "order": 7,
+        "order": 4,
         "disp": true,
         "width": "6",
         "collapse": false
@@ -784,6 +846,18 @@
         "z": "",
         "filename": "water_consumption.json",
         "interval": "7200"
+    },
+    {
+        "id": "7270567d.341408",
+        "type": "influxdb",
+        "z": "",
+        "hostname": "127.0.0.1",
+        "port": "8086",
+        "protocol": "http",
+        "database": "shim",
+        "name": "",
+        "usetls": false,
+        "tls": ""
     },
     {
         "id": "fd92601d.1a632",
