@@ -25,7 +25,7 @@ This is what this project about.
 - [Remote light switch](https://github.com/igrowing/esp8266_smart_home_ready/tree/master/modules/remote%20light%20switch) based on Homie IoT.
 - [Sewage pump controller](https://github.com/igrowing/esp8266_smart_home_ready/tree/master/modules/sewage%20pump%20controller) based on Homie IoT.
 - [Garden sensor](https://github.com/igrowing/esp8266_smart_home_ready/tree/master/modules/garden_sensor) based on ESP-easy.
-
+- [Water monitor and valve, Schieber](https://github.com/igrowing/esp8266_smart_home_ready/tree/master/modules/schieber) based on Homie IoT.
 
 ## Abandoned part
 ### Implementation
