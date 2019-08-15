@@ -159,9 +159,15 @@ void writeState() {
 }
 
 /* Calculate volume with consideration of time the shiber was booting and not counting.
-Assume constant water flow. */
+Consider non-linear flow sensor reaction to different speeds: lower speed more precise ticks,
+higher speed - higher error.  Assume constant water flow. */
 float get_liters() {
-  return (float)flow_last_ticks / (float)ticks_denom;     // measured volume
+  float runtime = millis() / 1000.0; 
+  if (runtime <= 0.0) runtime = 1.0;                            // Prevent div by 0
+  float raw_vol = (float)flow_last_ticks / (float)ticks_denom;  // measured volume
+  // calculated_speed = correct_speed * 0.68 + 0.0098 = volume / runtime;  =>
+  float correct_speed = (raw_vol/runtime - 0.0098) / 0.68;
+  return correct_speed * runtime;
 }
 
 /******************************************************************************************
@@ -306,9 +312,9 @@ void check_flow() {
     return;
   }
   // Alert on half consumption
-  if (((liters > flow_max_liters / 2.0) || (flow_time > flow_max_duration_ms / 2)) && !flow_half_alert_reported) {
+  if (((liters > flow_max_liters / 2) || (flow_time > flow_max_duration_ms / 2)) && !flow_half_alert_reported) {
     reportFlowAlert("{\"reason\":\"Water is running\",\"duration\":\"" + String(flow_time / 1000) +
-                    "\",\"liters\":" + f2str(liters, 1) + "\"}");
+                    "\",\"liters\":" + String(liters) + "\"}");
     flow_half_alert_reported = true;
   }
 }
@@ -586,7 +592,7 @@ void setup() {
   pinMode(PIN_FLOW, INPUT_PULLUP);
   attachInterrupt(PIN_FLOW, flowInterrupt, RISING);
 
-  Homie_setFirmware("shiber", "1.0.6");
+  Homie_setFirmware("shiber", "1.0.7");
 
   Homie.setSetupFunction(setupHandler).setLoopFunction(loopHandler);
   Homie.setResetTrigger(PIN_BUTTON, LOW, 10000);
