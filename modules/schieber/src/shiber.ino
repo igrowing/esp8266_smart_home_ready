@@ -20,7 +20,7 @@ Queue msg_q(sizeof(Rec), 5, FIFO, true);
 #define PIN_LDO           14
 #define SLEEP_US          3600000000
 uint32_t boot_reason      = RESET_UINT;  // 6 = power on, 5 = awake
-uint32_t boot_time        = RESET_UINT; 
+uint32_t boot_time_s      = RESET_UINT; 
 volatile short vbat_raw   = RESET_UINT;
 #define VBAT_LOW_TRSH     790            // 3.28V
 Ticker power_timer;                      // Use for powering off or sleep
@@ -162,12 +162,21 @@ void writeState() {
 Consider non-linear flow sensor reaction to different speeds: lower speed more precise ticks,
 higher speed - higher error.  Assume constant water flow. */
 float get_liters() {
-  float runtime = millis() / 1000.0; 
+  // Extrapolate missing ticks during boot time
+  float runtime = millis() / 1000 - boot_time_s; 
   if (runtime <= 0.0) runtime = 1.0;                            // Prevent div by 0
-  float raw_vol = (float)flow_last_ticks / (float)ticks_denom;  // measured volume
-  // calculated_speed = correct_speed * 0.68 + 0.0098 = volume / runtime;  =>
-  float correct_speed = (raw_vol/runtime - 0.0098) / 0.68;
-  return correct_speed * runtime;
+  float calibrated_ticks = (float)runtime * (float)flow_last_ticks / runtime;
+  // for hall
+  // Calibrate volume by speed: higher spped, stronger correction needed.
+  float speed_ratio = log(calibrated_ticks / runtime);
+  float vol = calibrated_ticks/speed_ratio/ticks_denom;
+
+  // for reed
+  // float raw_vol = (float)flow_last_ticks / (float)ticks_denom;  // measured volume
+  // // calculated_speed = correct_speed * 0.68 + 0.0098 = volume / runtime;  =>
+  // float correct_speed = (raw_vol/runtime - 0.0098) / 0.68;
+  // float vol = correct_speed * runtime / 10.0;
+  return (vol > 0.0)?vol:0.0;
 }
 
 /******************************************************************************************
@@ -178,7 +187,6 @@ void get_boot_reason() {
     rst_info *myResetInfo;
     myResetInfo = ESP.getResetInfoPtr();
     boot_reason = myResetInfo->reason;
-    boot_time = millis();
   }
 
 #ifdef DEBUG
@@ -221,7 +229,7 @@ void deep_sleep_or_off() {
   }
 
   String msg = "{\"uptime\":" + String(millis()/1000) + ",\"liters\":" + f2str(get_liters(), 1) + ",\"br\":" + String(boot_reason) + 
-                ",\"ticks\":" + String(flow_last_ticks)+ ",\"valve\":" + (valve_state ? "true" : "false");
+                ",\"ticks\":" + String(flow_last_ticks)+ ",\"boottime\":" + String(boot_time_s)+ ",\"valve\":" + (valve_state ? "true" : "false");
   // No water flow and valve closed => sleep, wait for mqtt commands.
   if (!valve_state) {
     shiberNode.setProperty("status").setRetained(false).send(msg + ",\"action\":\"sleep\"}");
@@ -242,7 +250,6 @@ void flowInterrupt() {
 *  Start flow periodic check. Get boot reason. Init. valve. Read Vbat.
 */
 void delayed_init() {
-  vbat_raw = analogRead(A0);
   get_boot_reason();
 
   if (!valve.begin()) {  // TODO: Consider moving after Homie.isConnected()
@@ -252,17 +259,6 @@ void delayed_init() {
     Homie.getLogger() << ">> Valve not found on I2C" << endl;
 #endif
   }
-
-//   // LED on till ready for user interaction
-//   if (flow_ticks <= FLOW_MIN_VALID_TICKS) {
-//     // Not actual timer needed. Just lock the timer to signal to check_flow "the human activated state"
-//     power_timer.once(15.0, deep_sleep_or_off);  
-// #ifdef DEBUG
-//     Rec r = {"status", "awaken by human or after sleep, led on"};
-//     msg_q.push(&r);
-//     Homie.getLogger() << ">> Awaken by human" << endl;
-// #endif
-//   }
 
 #ifdef DEBUG
   Rec r = {"status", "flow check start"};
@@ -399,6 +395,7 @@ void reportValveStatus() {
 }
 
 void reportBattery() {
+  vbat_raw = analogRead(A0);
   shiberNode.setProperty("battery").setRetained(false).send(f2str((float) vbat_raw * 0.0041, 1) + " V");
 #ifdef DEBUG
   Homie.getLogger() << ">> Vbat = " << f2str((float) vbat_raw * 0.0041, 1) << endl;
@@ -504,41 +501,9 @@ bool blinkLitersHandler(const HomieRange& range, const String& value) {
  *     HOMIE ESSENTIALS: SETUP AND LOOP
  ******************************************************************************************/
 void setupHandler() {
-  // If no values stored yet, keep a default value and store it for next boot. Else restore from Flash.
-  uint32_t val = restoreVariable("flow_max_duration_ms");
-  if (ERR_NUM == val) {
-    val = flow_max_duration_ms;
-    storeVariable("flow_max_duration_ms", flow_max_duration_ms);
-  }
-  flow_max_duration_ms = val;
-  shiberNode.setProperty("max-seconds").setRetained(false).send(String(flow_max_duration_ms / 1000));
-
-  val = restoreVariable("flow_max_liters");
-  if (ERR_NUM == val) {
-    val = flow_max_liters;
-    storeVariable("flow_max_liters", flow_max_liters);
-  }
-  flow_max_liters = val;
-  shiberNode.setProperty("max-liters").setRetained(false).send(String(flow_max_liters));
-
-  val = restoreVariable("ticks_denom");
-  if (ERR_NUM == val) {
-    val = ticks_denom;
-    storeVariable("ticks_denom", ticks_denom);
-  }
-  ticks_denom = val;
-  shiberNode.setProperty("ticks-denom").setRetained(false).send(String(ticks_denom));
-
-  val = restoreVariable("blink_liters");
-  if (ERR_NUM == val) {
-    val = blink_liters;
-    storeVariable("blink_liters", blink_liters);
-  }
-  blink_liters = val;
-  shiberNode.setProperty("blink-liters").setRetained(false).send(String(blink_liters));
-
   reportBattery();
   reportValveStatus();
+
   if (vbat_raw <= VBAT_LOW_TRSH) {
     shiberNode.setProperty("alert").setRetained(false).send("Low battery");
   }
@@ -549,6 +514,11 @@ void setupHandler() {
     blink_for(15000);
     power_timer.once(15.0, deep_sleep_or_off);
   }
+
+  shiberNode.setProperty("max-seconds").setRetained(false).send(String(flow_max_duration_ms / 1000));
+  shiberNode.setProperty("max-liters").setRetained(false).send(String(flow_max_liters));
+  shiberNode.setProperty("ticks-denom").setRetained(false).send(String(ticks_denom));
+  shiberNode.setProperty("blink-liters").setRetained(false).send(String(blink_liters));
   setup_done = true;
 }
 
@@ -592,12 +562,42 @@ void setup() {
   pinMode(PIN_FLOW, INPUT_PULLUP);
   attachInterrupt(PIN_FLOW, flowInterrupt, RISING);
 
-  Homie_setFirmware("shiber", "1.0.7");
+  Homie_setFirmware("shiber", "1.0.9");
 
   Homie.setSetupFunction(setupHandler).setLoopFunction(loopHandler);
   Homie.setResetTrigger(PIN_BUTTON, LOW, 10000);
   // Homie.disableLedFeedback();
   Homie.setLedPin(PIN_LED, LOW);
+ 
+   // If no values stored yet, keep a default value and store it for next boot. Else restore from Flash.
+  uint32_t val = restoreVariable("flow_max_duration_ms");
+  if (ERR_NUM == val) {
+    val = flow_max_duration_ms;
+    storeVariable("flow_max_duration_ms", flow_max_duration_ms);
+  }
+  flow_max_duration_ms = val;
+
+  val = restoreVariable("flow_max_liters");
+  if (ERR_NUM == val) {
+    val = flow_max_liters;
+    storeVariable("flow_max_liters", flow_max_liters);
+  }
+  flow_max_liters = val;
+
+  val = restoreVariable("ticks_denom");
+  if (ERR_NUM == val) {
+    val = ticks_denom;
+    storeVariable("ticks_denom", ticks_denom);
+  }
+  ticks_denom = val;
+
+  val = restoreVariable("blink_liters");
+  if (ERR_NUM == val) {
+    val = blink_liters;
+    storeVariable("blink_liters", blink_liters);
+  }
+  blink_liters = val;
+ 
   shiberNode.advertise("alert");  // Report problem asserted and deasserted
   shiberNode.advertise("status"); // json: {"uptime":32,"liters":5.3,"br":6,"ticks":362,"action":"shutdown","valve":true}
   shiberNode.advertise("battery");
@@ -608,6 +608,7 @@ void setup() {
   shiberNode.advertise("blink-liters").settable(blinkLitersHandler);  // Set threshold for 'close water' alert
   shiberNode.advertise("power").settable(powerHandler);  // Force power down. 'false' arg only.
 
+  boot_time_s = millis()/1000;
   flow_timer.once(2.0, delayed_init);
   Homie.setup();
 
