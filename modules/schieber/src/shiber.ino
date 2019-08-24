@@ -168,7 +168,7 @@ float get_liters() {
   float calibrated_ticks = (float)runtime * (float)flow_last_ticks / runtime;
   // for hall
   // Calibrate volume by speed: higher spped, stronger correction needed.
-  float speed_ratio = log(calibrated_ticks / runtime);
+  float speed_ratio = log10f(calibrated_ticks / runtime);
   float vol = calibrated_ticks/speed_ratio/ticks_denom;
 
   // for reed
