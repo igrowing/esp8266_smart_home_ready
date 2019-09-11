@@ -14,7 +14,7 @@ typedef struct strRec {
 	char	topic[10];
 	char	msg[90];
 } Rec;
-Queue msg_q(sizeof(Rec), 5, FIFO, true);
+Queue msg_q(sizeof(Rec), 7, FIFO, true);
 
 #define RESET_UINT        0
 #define PIN_LDO           14
@@ -99,8 +99,14 @@ uint32_t restoreVariable(char *name) {
 *  Return false if writing problem.
 */
 bool storeVariable(char *name, uint32_t val) {
+  // Alert on low free space
+  uint32_t freeBytes = read_free_space();
+  if (freeBytes <= 1024) {
+    Rec r = {"alert", "Low storage space is free on SPIFF. Toggle valve twice to free some space."};
+    msg_q.push(&r);
+  }
+
   File file = SPIFFS.open(PREFIX_VAR + String(name), "w");
-  // TODO: Add free space validation like in writeState
   if (!file.print(String(val))) {
     shiberNode.setProperty("alert").setRetained(false).send("Failed to write variable to SPIFFS: " + String(name) + "=" + String(val));
     return false;
@@ -134,12 +140,15 @@ int readState() {
   return (int)SPIFFS.exists(PREFIX + "1_" + String(lastFileIndex));
 }
 
-void writeState() {
+uint32_t read_free_space() {
   // Get space remaining.
   FSInfo info;
   SPIFFS.info(info);
-  uint32_t freeBytes = info.totalBytes - info.usedBytes;
+  return (info.totalBytes - info.usedBytes);
+}
 
+void writeState() {
+  uint32_t freeBytes = read_free_space();
   // If less than 1k: set global file name to 0 and remove all files.
   if (freeBytes <= 1024) {
     lastFileIndex = 0;
@@ -147,14 +156,15 @@ void writeState() {
     while (dir.next()) {
       SPIFFS.remove(dir.fileName());
     }
-    shiberNode.setProperty("status").setRetained(false).send("Flash cleaned");
+    Rec r = {"status", "Flash cleaned"};
+    msg_q.push(&r);
   } else {
     // Increment global file name
     lastFileIndex++;
   }
 
   // Write global file name. File name format: /stateX_N, where X is 0 or 1, N is sequential number.
-  File f = SPIFFS.open(PREFIX + (valve_state?"1":"0") + "_" + String(lastFileIndex), "w");
+  File f = SPIFFS.open(PREFIX + String(valve_state) + "_" + String(lastFileIndex), "w");
   f.close();
 }
 
@@ -274,6 +284,9 @@ void check_flow() {
 #ifdef DEBUG
     shiberNode.setProperty("status").setRetained(false).send("ticks not changed:"+String(flow_last_ticks));
 #endif
+
+    // Power off if not water running, not awating for human, and no WiFi available
+    if (!Homie.isConnected) power_timer.once(1.0, deep_sleep_or_off);
     return;
   }
 
@@ -299,8 +312,12 @@ void check_flow() {
 #endif
   }
 
-  // Shut off on max consumption
-  if (((liters > flow_max_liters) || (flow_time > flow_max_duration_ms)) && !flow_full_alert_reported) {
+  // Shut off on max consumption.                                                                      Avoid too early shutoff
+  if (((liters > flow_max_liters) || (flow_time > flow_max_duration_ms)) && (!flow_full_alert_reported && millis() > 15000)) {
+#ifdef DEBUG
+    Rec r = {"status", "Emergency requested valve false"};
+    msg_q.push(&r);
+#endif
     reportFlowAlert("{\"reason\":\"Water is running, shutting off\",\"duration\":\"" + String(flow_time / 1000) +
                     "\",\"liters\":" + String(liters) + "\"}");
     flow_full_alert_reported = true;
@@ -394,12 +411,28 @@ void reportValveStatus() {
 #endif
 }
 
-void reportBattery() {
+void reportEssentials() {
+  // Postpone report until MQTT connected
+  if (! Homie.isConnected()) {
+    setup_timer.once(1.0, reportEssentials);
+    return;
+  }
+
   vbat_raw = analogRead(A0);
   shiberNode.setProperty("battery").setRetained(false).send(f2str((float) vbat_raw * 0.0041, 1) + " V");
 #ifdef DEBUG
   Homie.getLogger() << ">> Vbat = " << f2str((float) vbat_raw * 0.0041, 1) << endl;
 #endif
+
+  if (vbat_raw <= VBAT_LOW_TRSH) {
+    shiberNode.setProperty("alert").setRetained(false).send("Low battery");
+  }
+
+  reportValveStatus();
+  shiberNode.setProperty("max-seconds").setRetained(false).send(String(flow_max_duration_ms / 1000));
+  shiberNode.setProperty("max-liters").setRetained(false).send(String(flow_max_liters));
+  shiberNode.setProperty("ticks-denom").setRetained(false).send(String(ticks_denom));
+  shiberNode.setProperty("blink-liters").setRetained(false).send(String(blink_liters));
 }
 
 void reportFlowAlert(String msg) {
@@ -421,11 +454,20 @@ bool powerHandler(const HomieRange& range, const String& value) {
 // homie/shiber-01/shiber/valve/set true
 bool valveHandler(const HomieRange& range, const String& value) {
   if (value == "toggle") {
+#ifdef DEBUG
+    Rec r = {"status", "MQTT requested valve toggle"};
+    msg_q.push(&r);
+#endif
+    
     toggleValve();
     return true;
   }
 
   if (value != "true" && value != "false") return false;
+#ifdef DEBUG
+  Rec r = {"status", "MQTT requested valve true"};
+  msg_q.push(&r);
+#endif
 
   set_valve(value == "true");
   return true;
@@ -501,12 +543,7 @@ bool blinkLitersHandler(const HomieRange& range, const String& value) {
  *     HOMIE ESSENTIALS: SETUP AND LOOP
  ******************************************************************************************/
 void setupHandler() {
-  reportBattery();
-  reportValveStatus();
-
-  if (vbat_raw <= VBAT_LOW_TRSH) {
-    shiberNode.setProperty("alert").setRetained(false).send("Low battery");
-  }
+  setup_timer.once(3.0, reportEssentials);
 
   // Blink as ready for user interaction
   if (flow_ticks <= FLOW_MIN_VALID_TICKS) {
@@ -515,10 +552,6 @@ void setupHandler() {
     power_timer.once(15.0, deep_sleep_or_off);
   }
 
-  shiberNode.setProperty("max-seconds").setRetained(false).send(String(flow_max_duration_ms / 1000));
-  shiberNode.setProperty("max-liters").setRetained(false).send(String(flow_max_liters));
-  shiberNode.setProperty("ticks-denom").setRetained(false).send(String(ticks_denom));
-  shiberNode.setProperty("blink-liters").setRetained(false).send(String(blink_liters));
   setup_done = true;
 }
 
@@ -531,6 +564,11 @@ void loopHandler() {
   };
   if (debouncer.rose()) {  // toggle valve and postpone power off on button release
     shiberNode.setProperty("status").setRetained(false).send("Change valve by button");
+#ifdef DEBUG
+    Rec r = {"status", "Button requested valve true"};
+    msg_q.push(&r);
+#endif
+
     toggleValve();
     // Confirm manual action Visually
     blink_led(100, 300);  
@@ -538,7 +576,7 @@ void loopHandler() {
     power_timer.once(15.0, deep_sleep_or_off);
   }
 
-  while (!msg_q.isEmpty()) {
+  while (!msg_q.isEmpty() && Homie.isConnected()) {
     Rec r;
     msg_q.pop(&r);
     shiberNode.setProperty(r.topic).setRetained(false).send(r.msg);
@@ -562,7 +600,7 @@ void setup() {
   pinMode(PIN_FLOW, INPUT_PULLUP);
   attachInterrupt(PIN_FLOW, flowInterrupt, RISING);
 
-  Homie_setFirmware("shiber", "1.0.9");
+  Homie_setFirmware("shiber", "1.0.10");
 
   Homie.setSetupFunction(setupHandler).setLoopFunction(loopHandler);
   Homie.setResetTrigger(PIN_BUTTON, LOW, 10000);
