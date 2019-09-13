@@ -27,8 +27,8 @@ All this is possible to do directly on RasPi without ESP8266 if your RasPi is in
   1. Generate the IR command with build_ac_cmd.py.
   1. Transmit it with ```mosquitto_pub -t <topic_to_your_ESP8266> -m <the_IR_command>```
   
-## Adding more A/C untis
-Putting here some info, since it was painful process for me. Maybe this will relief some pain for others.
+## Adding more A/C units
+Putting here some info, since it was painful process for me. There are too many different A/C vendors and models, and too little is covered with LIRC. Maybe this will relieve some pain for others.
 1. The optimal way to decode the IR is using Tasmota.
 1. Once Tasmota loaded and running, choose IRrecv to the IO where the IR receiver connected.
 1. Run in Tasmota console or MQTT full reporting of IR codes: ```SetOption58 1```
