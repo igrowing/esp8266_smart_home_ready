@@ -6,7 +6,7 @@ Control A/C unit via Infrared (IR) from ESP8266.
 ## Implementation
 UI in Node-Red --> Command generation in script --> Send command via MQTT --> Transmit the IR command from ESP8266
 - A/C commands are gathered into a Database in build_ac_cmd.py. Add your own commands and algorithms.
-- From UI or internal logic the build_ac_cmd.py generates proper command to be send to required A/C model.
+- From UI or internal logic the build_ac_cmd.py generates proper command to be send to required A/C model. If the A/C is off then any change in UI (temperature, mode, swing, fan) turns it on. Why? I thought that's comfortable. :-)
 - The MQTT transfers the command to proper ESP8266 module.
 - The ESP8266, running Tasmota in this case (however, Homie is my favorite, running in other cases), transmits the command with IR. 
 
