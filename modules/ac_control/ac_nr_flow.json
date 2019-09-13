@@ -1,0 +1,283 @@
+[
+    {
+        "id": "9650a6ea.e93f18",
+        "type": "debug",
+        "z": "669e4b2e.c077d4",
+        "name": "debug_germ",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": true,
+        "complete": "payload",
+        "x": 970,
+        "y": 4000,
+        "wires": []
+    },
+    {
+        "id": "37c9a41b.00591c",
+        "type": "ui_switch",
+        "z": "669e4b2e.c077d4",
+        "name": "Mode",
+        "label": "",
+        "tooltip": "Cool/Heat",
+        "group": "721fb8ce.3dc1d8",
+        "order": 10,
+        "width": "1",
+        "height": "1",
+        "passthru": true,
+        "decouple": "false",
+        "topic": "mode",
+        "style": "",
+        "onvalue": "heat",
+        "onvalueType": "str",
+        "onicon": "wb_sunny",
+        "oncolor": "red",
+        "offvalue": "cool",
+        "offvalueType": "str",
+        "officon": "ac_unit",
+        "offcolor": "cyan",
+        "x": 90,
+        "y": 4040,
+        "wires": [
+            [
+                "c5c26da0.86425"
+            ]
+        ]
+    },
+    {
+        "id": "ca486580.c0f458",
+        "type": "ui_numeric",
+        "z": "669e4b2e.c077d4",
+        "name": "Temp",
+        "label": "<i class=\"fa fa-thermometer-half fa-2x\"></i>",
+        "tooltip": "Set temperature",
+        "group": "721fb8ce.3dc1d8",
+        "order": 12,
+        "width": "2",
+        "height": "1",
+        "passthru": true,
+        "topic": "temp",
+        "format": "{{value}}",
+        "min": "16",
+        "max": "31",
+        "step": 1,
+        "x": 130,
+        "y": 3980,
+        "wires": [
+            [
+                "c5c26da0.86425"
+            ]
+        ]
+    },
+    {
+        "id": "8dd0e6e1.14e228",
+        "type": "ui_dropdown",
+        "z": "669e4b2e.c077d4",
+        "name": "Fan",
+        "label": "Fan",
+        "tooltip": "Set fan",
+        "place": "",
+        "group": "721fb8ce.3dc1d8",
+        "order": 14,
+        "width": "3",
+        "height": "1",
+        "passthru": true,
+        "options": [
+            {
+                "label": "auto",
+                "value": "auto",
+                "type": "str"
+            },
+            {
+                "label": "1",
+                "value": "1",
+                "type": "str"
+            },
+            {
+                "label": "2",
+                "value": "2",
+                "type": "str"
+            },
+            {
+                "label": "3",
+                "value": "3",
+                "type": "str"
+            }
+        ],
+        "payload": "",
+        "topic": "fan",
+        "x": 210,
+        "y": 4060,
+        "wires": [
+            [
+                "c5c26da0.86425"
+            ]
+        ]
+    },
+    {
+        "id": "a2f1605e.90968",
+        "type": "ui_switch",
+        "z": "669e4b2e.c077d4",
+        "name": "",
+        "label": "Air conditioner",
+        "tooltip": "",
+        "group": "721fb8ce.3dc1d8",
+        "order": 11,
+        "width": "5",
+        "height": "1",
+        "passthru": false,
+        "decouple": "true",
+        "topic": "power",
+        "style": "",
+        "onvalue": "1",
+        "onvalueType": "str",
+        "onicon": "",
+        "oncolor": "",
+        "offvalue": "0",
+        "offvalueType": "str",
+        "officon": "",
+        "offcolor": "",
+        "x": 300,
+        "y": 4100,
+        "wires": [
+            [
+                "c5c26da0.86425"
+            ]
+        ]
+    },
+    {
+        "id": "5f9f4630.c9ffe8",
+        "type": "ui_switch",
+        "z": "669e4b2e.c077d4",
+        "name": "Swing",
+        "label": "",
+        "tooltip": "Swing",
+        "group": "721fb8ce.3dc1d8",
+        "order": 13,
+        "width": "1",
+        "height": "1",
+        "passthru": true,
+        "decouple": "false",
+        "topic": "swing",
+        "style": "",
+        "onvalue": "1",
+        "onvalueType": "str",
+        "onicon": "arrow_forward",
+        "oncolor": "yellow",
+        "offvalue": "0",
+        "offvalueType": "str",
+        "officon": "rotate_right",
+        "offcolor": "yellow",
+        "x": 210,
+        "y": 4020,
+        "wires": [
+            [
+                "c5c26da0.86425"
+            ]
+        ]
+    },
+    {
+        "id": "c5c26da0.86425",
+        "type": "function",
+        "z": "669e4b2e.c077d4",
+        "name": "A/C params to cmd",
+        "func": "var model = 'spirit';  // Edit by the need/room\n\ncontext.set(msg.topic, msg.payload);\nif (msg.topic != 'power') {\n    context.set('power', '1');\n}\n\nvar temp = context.get('temp') || '25';\nvar swing = context.get('swing') || '0';\nvar fan = context.get('fan') || 'auto';\nvar mode = context.get('mode') || 'cool';\nvar power = context.get('power') || '0';\nnode.status({fill:\"green\",shape:\"dot\",text:\"mode:\"+mode+\",temp:\"+temp+\",fan:\"+fan+\",power:\"+power});\n\nif (power == '0') mode = 'off';\nreturn [{payload: model + ',' + mode + ',' + fan + ',' + swing + ',' + temp},\n        {payload: power}];\n",
+        "outputs": 2,
+        "noerr": 0,
+        "x": 460,
+        "y": 4040,
+        "wires": [
+            [
+                "6bda1b5d.ed8ff4"
+            ],
+            [
+                "a2f1605e.90968"
+            ]
+        ]
+    },
+    {
+        "id": "b4a150.6a37feb",
+        "type": "mqtt out",
+        "z": "669e4b2e.c077d4",
+        "name": "",
+        "topic": "testmota/cmnd/irsend",
+        "qos": "",
+        "retain": "",
+        "broker": "2bd2afca.e962e",
+        "x": 980,
+        "y": 4040,
+        "wires": []
+    },
+    {
+        "id": "6bda1b5d.ed8ff4",
+        "type": "exec",
+        "z": "669e4b2e.c077d4",
+        "command": "python build_ac_cmd.py ",
+        "addpay": true,
+        "append": "| tail -1",
+        "useSpawn": "false",
+        "timer": "2",
+        "oldrc": false,
+        "name": "",
+        "x": 710,
+        "y": 4040,
+        "wires": [
+            [
+                "9650a6ea.e93f18",
+                "b4a150.6a37feb"
+            ],
+            [
+                "9650a6ea.e93f18"
+            ],
+            []
+        ]
+    },
+    {
+        "id": "188ee271.10cb9e",
+        "type": "comment",
+        "z": "669e4b2e.c077d4",
+        "name": "________   A/C control example, HOWTO   ________",
+        "info": "- Update the topic in MQTT send to the dedicated A/C unit/room.\n- Update the A/C unit model in the function.\n- Update the drop menu with Fan speed for that model.\n",
+        "x": 570,
+        "y": 3980,
+        "wires": []
+    },
+    {
+        "id": "721fb8ce.3dc1d8",
+        "type": "ui_group",
+        "z": "",
+        "name": "Living room",
+        "tab": "531ef1f0.9a426",
+        "order": 3,
+        "disp": true,
+        "width": "6",
+        "collapse": false
+    },
+    {
+        "id": "2bd2afca.e962e",
+        "type": "mqtt-broker",
+        "z": "",
+        "name": "",
+        "broker": "localhost",
+        "port": "1883",
+        "clientid": "",
+        "usetls": false,
+        "compatmode": true,
+        "keepalive": "60",
+        "cleansession": true,
+        "birthTopic": "",
+        "birthQos": "0",
+        "birthPayload": "",
+        "willTopic": "",
+        "willQos": "0",
+        "willPayload": ""
+    },
+    {
+        "id": "531ef1f0.9a426",
+        "type": "ui_tab",
+        "z": "",
+        "name": "MyHome",
+        "icon": "home",
+        "order": 1
+    }
+]
