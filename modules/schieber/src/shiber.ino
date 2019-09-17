@@ -1,5 +1,9 @@
 /******************************************************************************************
  * She-bear: automated water flow meter and control
+ * Known issue: rarely get_liters return a value that casted to uint32_t as 4294967295.
+ *              This caused wrong alerting and shut off. 
+ *              Added delay for proper init of flow counters.
+ * 
  * (2019) iGrowing
  ******************************************************************************************/
 #include <Homie.h>
@@ -324,8 +328,8 @@ void check_flow() {
     set_valve(false);
     return;
   }
-  // Alert on half consumption
-  if (((liters > flow_max_liters / 2) || (flow_time > flow_max_duration_ms / 2)) && !flow_half_alert_reported) {
+  // Alert on half consumption                                                                        Avoid too early shutoff
+  if (((liters > flow_max_liters / 2) || (flow_time > flow_max_duration_ms / 2)) && (!flow_half_alert_reported && millis() > 15000)) {
     reportFlowAlert("{\"reason\":\"Water is running\",\"duration\":\"" + String(flow_time / 1000) +
                     "\",\"liters\":" + String(liters) + "\"}");
     flow_half_alert_reported = true;
@@ -600,7 +604,7 @@ void setup() {
   pinMode(PIN_FLOW, INPUT_PULLUP);
   attachInterrupt(PIN_FLOW, flowInterrupt, RISING);
 
-  Homie_setFirmware("shiber", "1.0.10");
+  Homie_setFirmware("shiber", "1.0.11");
 
   Homie.setSetupFunction(setupHandler).setLoopFunction(loopHandler);
   Homie.setResetTrigger(PIN_BUTTON, LOW, 10000);
