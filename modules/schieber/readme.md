@@ -77,6 +77,8 @@ She-bear is designed as zero-maintenance device. It fills its battery from built
 
 That's pretty weird case, low probability to happen. So the She-bear is zero-maintenance. Frankly, Li-Ion battery might require replacement every 8-10 years.
 
+The modification of the power generator required to maintain stable charge. [Follow this guide.](https://igrowing.livejournal.com/230391.html)
+
 ### WebUI
 The Node-Red Web UI looks good on computer display and on smartphone. Handy to use. The Web UI is split to 3 groups for comfort of user perception:
 * Status/Control
