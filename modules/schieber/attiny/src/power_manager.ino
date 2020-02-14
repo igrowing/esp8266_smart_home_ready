@@ -1,6 +1,6 @@
-// ATtiny85 pulse detector.
+// ATtiny85 power manager.
 // Consumes 5-6mA while active, <0.5mA while sleeps (measured).
-// Ignore single logical level change.
+// Ignore PULSE_DETECT_CNT logical level change.
 // When periodic pulse detected (oscillations) drive external LDO.
 // Keep itself in sleep mode for power save, wake on pin change interrupt.
 // ESP signals to ATtiny about power off or sleep mode. 
@@ -20,7 +20,7 @@
 
 #include <avr/sleep.h>
 #include <avr/power.h>
-//#define DEBUG              // enables prints via serial 
+#define DEBUG              // enables prints via serial 
 
 #include <TinyPinChange.h>
 #ifdef DEBUG
