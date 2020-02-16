@@ -1,8 +1,5 @@
 /******************************************************************************************
  * She-bear: automated water flow meter and control
- * Known issue: rarely get_liters return a value that casted to uint32_t as 4294967295.
- *              This caused wrong alerting and shut off. 
- *              Added delay for proper init of flow counters.
  * 
  * (2019) iGrowing
  ******************************************************************************************/
@@ -24,7 +21,7 @@ Queue msg_q(sizeof(Rec), 7, FIFO, true);
 #define PIN_LDO           14
 #define SLEEP_US          3600000000
 uint32_t boot_reason      = RESET_UINT;  // 6 = power on, 5 = awake
-uint32_t boot_time_s      = RESET_UINT; 
+uint32_t connect_time_s   = RESET_UINT; 
 volatile short vbat_raw   = RESET_UINT;
 #define VBAT_LOW_TRSH     790            // 3.28V
 Ticker power_timer;                      // Use for powering off or sleep
@@ -48,11 +45,13 @@ uint_fast32_t flow_ticks = RESET_UINT;
 uint32_t flow_last_ticks = RESET_UINT;
 uint32_t flow_started_ts = RESET_UINT;
 uint32_t flow_report_ts = RESET_UINT;
-uint32_t ticks_denom = FLOW_COEFF;
 uint32_t flow_last_blink_l = RESET_UINT;
+
+uint32_t ticks_denom = FLOW_COEFF;
 uint32_t blink_liters = 5;
 uint32_t flow_max_liters = 5000;         // 5000 liters
 uint32_t flow_max_duration_ms = 7200000; // 2 hours
+
 bool flow_half_alert_reported = false;
 bool flow_full_alert_reported = false;
 Ticker flow_timer;
@@ -87,6 +86,9 @@ uint32_t restoreVariable(char *name) {
   // Return -1 if no file found or file is empty (stores nothing).
   File file = SPIFFS.open(PREFIX_VAR + String(name), "r");
   if (file) {
+#ifdef DEBUG
+    Homie.getLogger() << ">> file len = " << String(file.size()) << endl;
+#endif
     String val = file.readString();
 #ifdef DEBUG
     Serial.println(">> " + String(name) + ": " + val);
@@ -123,6 +125,12 @@ String f2str(float_t in, int16_t precision) {
   char res[precision + 4];
   dtostrf(in, precision + 3, precision, res);
   return res;
+}
+
+/* Wait and let background processes to run. */
+void soft_delay(int ms) {
+  uint32_t start = millis();
+  while (start + ms < millis());
 }
 
 int readState() {
@@ -176,13 +184,13 @@ void writeState() {
 Consider non-linear flow sensor reaction to different speeds: lower speed more precise ticks,
 higher speed - higher error.  Assume constant water flow. */
 float get_liters() {
-  // Extrapolate missing ticks during boot time
-  float runtime = millis() / 1000 - boot_time_s; 
+  float runtime = millis() / 1000; 
   if (runtime <= 0.0) runtime = 1.0;                            // Prevent div by 0
-  float calibrated_ticks = (float)runtime * (float)flow_last_ticks / runtime;
+  float calibrated_ticks = runtime * (float)flow_last_ticks / runtime;
   // for hall
   // Calibrate volume by speed: higher spped, stronger correction needed.
   float speed_ratio = log10f(calibrated_ticks / runtime);
+  if (speed_ratio <= 1.0) speed_ratio = 1.0;       // Prevent negative values and div by 0
   float vol = calibrated_ticks/speed_ratio/ticks_denom;
 
   // for reed
@@ -222,7 +230,7 @@ void stop_sleep_signal() {
   digitalWrite(PIN_LDO, HIGH);
   Homie.prepareToSleep();
   Homie.doDeepSleep(SLEEP_US);
-  delay(10);  
+  soft_delay(10);  
 }
 
 void deep_sleep() {
@@ -232,7 +240,7 @@ void deep_sleep() {
 
 void shutdown() {
   digitalWrite(PIN_LDO, LOW);
-  delay(10);
+  soft_delay(100);
 }
 
 void deep_sleep_or_off() {
@@ -243,7 +251,7 @@ void deep_sleep_or_off() {
   }
 
   String msg = "{\"uptime\":" + String(millis()/1000) + ",\"liters\":" + f2str(get_liters(), 1) + ",\"br\":" + String(boot_reason) + 
-                ",\"ticks\":" + String(flow_last_ticks)+ ",\"boottime\":" + String(boot_time_s)+ ",\"valve\":" + (valve_state ? "true" : "false");
+                ",\"ticks\":" + String(flow_last_ticks)+ ",\"connecttime\":" + String(connect_time_s)+ ",\"valve\":" + (valve_state ? "true" : "false");
   // No water flow and valve closed => sleep, wait for mqtt commands.
   if (!valve_state) {
     shiberNode.setProperty("status").setRetained(false).send(msg + ",\"action\":\"sleep\"}");
@@ -264,9 +272,7 @@ void flowInterrupt() {
 *  Start flow periodic check. Get boot reason. Init. valve. Read Vbat.
 */
 void delayed_init() {
-  get_boot_reason();
-
-  if (!valve.begin()) {  // TODO: Consider moving after Homie.isConnected()
+  if (!valve.begin()) {
     Rec r = {"alert", "Valve not found on I2C"};
     msg_q.push(&r);
 #ifdef DEBUG
@@ -279,6 +285,7 @@ void delayed_init() {
   msg_q.push(&r);
 #endif
   flow_timer.attach(POLL_PERIOD_S, check_flow);
+  power_timer.once(30.0, deep_sleep_or_off);  // shut off if no wifi in timeout or overwrite the timer in setupHandler
 }
 
 void check_flow() {
@@ -288,9 +295,6 @@ void check_flow() {
 #ifdef DEBUG
     shiberNode.setProperty("status").setRetained(false).send("ticks not changed:"+String(flow_last_ticks));
 #endif
-
-    // Power off if not water running, not awating for human, and no WiFi available
-    if (!Homie.isConnected) power_timer.once(1.0, deep_sleep_or_off);
     return;
   }
 
@@ -416,12 +420,6 @@ void reportValveStatus() {
 }
 
 void reportEssentials() {
-  // Postpone report until MQTT connected
-  if (! Homie.isConnected()) {
-    setup_timer.once(1.0, reportEssentials);
-    return;
-  }
-
   vbat_raw = analogRead(A0);
   shiberNode.setProperty("battery").setRetained(false).send(f2str((float) vbat_raw * 0.0041, 1) + " V");
 #ifdef DEBUG
@@ -547,6 +545,8 @@ bool blinkLitersHandler(const HomieRange& range, const String& value) {
  *     HOMIE ESSENTIALS: SETUP AND LOOP
  ******************************************************************************************/
 void setupHandler() {
+  connect_time_s = millis()/1000;
+  get_boot_reason();
   setup_timer.once(3.0, reportEssentials);
 
   // Blink as ready for user interaction
@@ -575,9 +575,9 @@ void loopHandler() {
 
     toggleValve();
     // Confirm manual action Visually
-    blink_led(100, 300);  
+    blink_led(100, 300);
     blink_times(3);
-    power_timer.once(15.0, deep_sleep_or_off);
+    power_timer.once(15.0, deep_sleep_or_off);  // Update timer to count down 15 sec from the user interaction moment
   }
 
   while (!msg_q.isEmpty() && Homie.isConnected()) {
@@ -601,17 +601,30 @@ void setup() {
   debouncer.attach(PIN_BUTTON);
   debouncer.interval(10);
 
-  pinMode(PIN_FLOW, INPUT_PULLUP);
+  pinMode(PIN_FLOW, INPUT);
   attachInterrupt(PIN_FLOW, flowInterrupt, RISING);
 
-  Homie_setFirmware("shiber", "1.0.11");
+  Homie_setFirmware("shiber", "1.0.13");
 
   Homie.setSetupFunction(setupHandler).setLoopFunction(loopHandler);
   Homie.setResetTrigger(PIN_BUTTON, LOW, 10000);
   // Homie.disableLedFeedback();
   Homie.setLedPin(PIN_LED, LOW);
- 
-   // If no values stored yet, keep a default value and store it for next boot. Else restore from Flash.
+
+  shiberNode.advertise("alert");  // Report problem asserted and deasserted
+  shiberNode.advertise("status"); // json: {"uptime":32,"liters":5.3,"br":6,"ticks":362,"connecttime":5,action":"shutdown","valve":true}
+  shiberNode.advertise("battery");
+  shiberNode.advertise("valve").settable(valveHandler);  // Report relay is on and off
+  shiberNode.advertise("max-liters").settable(maxLitersHandler);  // Set threshold for 'close water' alert
+  shiberNode.advertise("max-seconds").settable(maxSecondsHandler);  // Set threshold for 'close water' alert
+  shiberNode.advertise("ticks-denom").settable(ticksDenomHandler);  // Set threshold for 'close water' alert
+  shiberNode.advertise("blink-liters").settable(blinkLitersHandler);  // Set threshold for 'close water' alert
+  shiberNode.advertise("power").settable(powerHandler);  // Force power down. 'false' arg only.
+
+  flow_timer.once(2.0, delayed_init);
+  Homie.setup();
+
+  // If no values stored yet, keep a default value and store it for next boot. Else restore from Flash.
   uint32_t val = restoreVariable("flow_max_duration_ms");
   if (ERR_NUM == val) {
     val = flow_max_duration_ms;
@@ -639,21 +652,6 @@ void setup() {
     storeVariable("blink_liters", blink_liters);
   }
   blink_liters = val;
- 
-  shiberNode.advertise("alert");  // Report problem asserted and deasserted
-  shiberNode.advertise("status"); // json: {"uptime":32,"liters":5.3,"br":6,"ticks":362,"action":"shutdown","valve":true}
-  shiberNode.advertise("battery");
-  shiberNode.advertise("valve").settable(valveHandler);  // Report relay is on and off
-  shiberNode.advertise("max-liters").settable(maxLitersHandler);  // Set threshold for 'close water' alert
-  shiberNode.advertise("max-seconds").settable(maxSecondsHandler);  // Set threshold for 'close water' alert
-  shiberNode.advertise("ticks-denom").settable(ticksDenomHandler);  // Set threshold for 'close water' alert
-  shiberNode.advertise("blink-liters").settable(blinkLitersHandler);  // Set threshold for 'close water' alert
-  shiberNode.advertise("power").settable(powerHandler);  // Force power down. 'false' arg only.
-
-  boot_time_s = millis()/1000;
-  flow_timer.once(2.0, delayed_init);
-  Homie.setup();
-
 }
 
 void loop() {
