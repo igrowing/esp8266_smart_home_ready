@@ -16,6 +16,9 @@ There are geek-driven solutions for OTA: the human (engineer or skilled person) 
 
 Therefore, module should initiate itself on the server (register) and request updates on periodic basis. Once developer releases the update to the server, every single ESP8266 module should update itself asynchronously.
 
+The main concept of our smart home is:
+### Home must serve you. You should enjoy ###
+
 This is what this project about.
 
 ## Active parts
