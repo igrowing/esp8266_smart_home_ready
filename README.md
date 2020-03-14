@@ -1,4 +1,37 @@
 # ESP8266 based Smart Home System
+## Principle
+### Types of smart home
+- Centralized - there is one smart hub in the house and bunch of perfieral devices just perform its commands.
+- Decentralized - every edge device is smart and self-contained.
+- Cloud - the same as centralized, just the hub is not in your house... with all pros and cons.
+- Hybrid - every edge device is smart enough to perform on its own, plus it communicates with the hub in your house or in cloud when/if needed.
+
+We develop the **Hybrid Smart Home**, as the most resilient, safe, and serviceable system.
+
+### What is Smart?
+
+Today every relay connected to Bluetooth called "smart". De facto, this type of "smart" is actually "controlled" device. It is controlled by humans via phone/app/cloud/vocal assistant. So human is smart in this case, not the device.
+
+Smart home consists devices (edge peripherals, hub(s), and cloud connection) which are able to learn habitants behavior, preferences, rules, and perform accordingly to them automatically.
+
+**Smart home must serve people**, not people should care about smart home.
+
+The main concept of our smart home is:
+### Home must serve you. You should enjoy ###
+
+This is what this project about.
+
+## Active parts
+- [Room sensor](https://github.com/igrowing/esp8266_smart_home_ready/tree/master/modules/room_sensor) based on ESP-easy.
+- [Room sensor](https://github.com/igrowing/esp8266_smart_home_ready/tree/master/modules/room%20sensor%20v2) based on Homie IoT.
+- [Leakage detector, door/window sensor, remote bell button, etc.](https://github.com/igrowing/esp8266_smart_home_ready/tree/master/modules/leakage_detector) based on ESP-easy.
+- [Remote light switch](https://github.com/igrowing/esp8266_smart_home_ready/tree/master/modules/remote%20light%20switch) based on Homie IoT.
+- [Sewage pump controller](https://github.com/igrowing/esp8266_smart_home_ready/tree/master/modules/sewage%20pump%20controller) based on Homie IoT.
+- [Garden sensor](https://github.com/igrowing/esp8266_smart_home_ready/tree/master/modules/garden_sensor) based on ESP-easy.
+- [Water monitor and valve, Schieber](https://github.com/igrowing/esp8266_smart_home_ready/tree/master/modules/schieber) based on Homie IoT.
+- [Boilero: the really smart boiler](https://github.com/igrowing/esp8266_smart_home_ready/tree/master/modules/boilero) based on Homie IoT.
+
+## Abandoned part
 
 Spanish proverb says: "Wise man changes his mind, a fool never".
 We admit that struggling over the same problems as other developers is not effective way for progress.
@@ -16,21 +49,6 @@ There are geek-driven solutions for OTA: the human (engineer or skilled person) 
 
 Therefore, module should initiate itself on the server (register) and request updates on periodic basis. Once developer releases the update to the server, every single ESP8266 module should update itself asynchronously.
 
-The main concept of our smart home is:
-### Home must serve you. You should enjoy ###
-
-This is what this project about.
-
-## Active parts
-- [Room sensor](https://github.com/igrowing/esp8266_smart_home_ready/tree/master/modules/room_sensor) based on ESP-easy.
-- [Room sensor](https://github.com/igrowing/esp8266_smart_home_ready/tree/master/modules/room%20sensor%20v2) based on Homie IoT.
-- [Leakage detector, door/window sensor, remote bell button, etc.](https://github.com/igrowing/esp8266_smart_home_ready/tree/master/modules/leakage_detector) based on ESP-easy.
-- [Remote light switch](https://github.com/igrowing/esp8266_smart_home_ready/tree/master/modules/remote%20light%20switch) based on Homie IoT.
-- [Sewage pump controller](https://github.com/igrowing/esp8266_smart_home_ready/tree/master/modules/sewage%20pump%20controller) based on Homie IoT.
-- [Garden sensor](https://github.com/igrowing/esp8266_smart_home_ready/tree/master/modules/garden_sensor) based on ESP-easy.
-- [Water monitor and valve, Schieber](https://github.com/igrowing/esp8266_smart_home_ready/tree/master/modules/schieber) based on Homie IoT.
-
-## Abandoned part
 ### Implementation
 **ESP8266 side:** Lua files to be uploaded to the module during "manufacturing" process.
 
