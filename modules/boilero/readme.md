@@ -10,7 +10,7 @@ Meanwhile I've build a "perfect" boiler controller and I could load Tasmota on i
 ## Features ##
 - 30A relay overrated enough for any boiler.
 - EMI and surge protection.
-- OLED display, 3 buttons, and multicolor RGB LED as user interface.
+- OLED display, 3 buttons, and multicolor LED as user interface.
 - GUI on Node-RED via hub on Raspberry-Pi. Accessible/visible from mobile phone or computer in LAN or outside of home.
 - MQTT reported/controlled.
 - Controlled by hardware buttons too.
@@ -18,12 +18,14 @@ Meanwhile I've build a "perfect" boiler controller and I could load Tasmota on i
 - Enhanced LED signaling: 
   - LED becomes 'hotter' while water is heating, incrementally changing the color from blue to red.
   - If the boiler has reached max. temperature and not heating then LED is flashing red meanwhile relay should be on. In this state, the relay is actually off, keeping the electrical wiring of the boiler out of voltage.
-  - Rainbow colors while not configured.
+  - If the boiler is on without timer (manually or via MQTT) the red LED flashes as reminder.
   - TBD color while trying to connect to Wifi.
 - Advanced measurement:
-  - Current
-  - Air temperature (used for auto-adjustment of timer)
-  - Humidity
+  - Current reported periodically while boiler is on.
+  - Energy consumtion reported every end of boiler run time.
+  - Alert about power consumtion when relay should be off and there is current: contact slip, hardware problem.
+  - Air temperature (used for auto-adjustment of timer).
+  - Air pressure (used for auto-adjustment of timer).
 
 ## Human interface and operation ##
 ### Physical UI/UX ###
