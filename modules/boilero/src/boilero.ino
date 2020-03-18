@@ -6,16 +6,15 @@
 // has bug fixes, don't use stock lib:
 #include "../lib/Adafruit_BMP085/src/Adafruit_BMP085.h"
 
-#define FW_VER       "1.0.7" 
-#define DEBUG
+#define FW_VER       "1.0.С" 
+// #define DEBUG
 
-#define PIN_LED_RED  14
-#define PIN_LED_BLUE 13
-#define PIN_CURRENT  ADC
-#define PIN_RELAY    15
 #define PIN_BTN_CTR  0
 #define PIN_BTN_UP   2
 #define PIN_BTN_DN   12
+#define PIN_LED_RED  14
+#define PIN_LED_BLUE 13
+#define PIN_RELAY    15
 #define INTERACTION_TIMEOUT  120000
 
 #define CLEARED     -10
@@ -28,6 +27,12 @@ typedef struct strRec {
 } Rec;
 Queue msg_q(sizeof(Rec), 7, FIFO, true); 
 
+typedef struct times {
+	uint32_t	now;
+	uint32_t	on;
+	uint32_t	in;
+} Times;
+
 unsigned long epoch_time = CLEARED;         // local time
 uint32_t epoch_recv_ts = UCLEARED;          // timestamp in ms when recieved the epoch time
 
@@ -37,8 +42,7 @@ const long ERR_NUM = -1;
 enum boilerStates {
   DISPLAY_OFF,
   SHOW_STATUS,
-  DURATION,
-  RESET
+  SET_DURATION
 } current_state;
 
 /******************  Multi-source Relay control - how it works   ***********************
@@ -50,7 +54,7 @@ enum runReason {
   REMOTE,
   MANUAL
 } run_reason;
-volatile bool lastRelaystate = false;   // Used to display the state change when controlled not by human
+volatile bool last_relay_state = false;   // Used to display the state change when controlled not by human
 volatile bool relayState;               // Keeps actual relay status
 
 HomieNode powerNode("boiler", "switch");
@@ -58,7 +62,6 @@ HomieSetting<long> tempMinC_Setting("temp_min_c", "Temperature to use 100% of ti
 HomieSetting<long> tempMaxC_Setting("temp_max_c", "Temperature to use 0% of timer");  // id, description
 HomieSetting<long> timeIncrementM_Setting("time_increment_m", "Minutes to increase/decrease on every +/- button click");  // id, description
 HomieSetting<bool> suspend_Setting("suspend", "Suspend automation while on vacation");  // id, description
-HomieSetting<double> repeatOn_Setting("repeat_on", "Time of day the boiler must start");  // id, description
 
 EasyButton button_ctr(PIN_BTN_CTR);
 EasyButton button_up(PIN_BTN_UP);
@@ -92,15 +95,17 @@ uint32_t current_relay_time_ms = UCLEARED;  // How long to run the boiler calcul
 uint32_t remote_relay_time_ms = UCLEARED;   // How long to run the boiler requested from MQTT
 uint32_t start_relay_time_ms = UCLEARED;    // When boiler started
 int32_t manual_relay_duration_m = CLEARED;  // How long to run the boiler requested from buttons
+float current_timer_interval = CLEARED;
 uint8_t start_time_h = UCLEARED;
 uint8_t start_time_m = UCLEARED;
-uint8_t start_every_h = UCLEARED;
-uint32_t energy = UCLEARED;
-
-#define STATUS_INTERVAL    3000             // Change status display every 3 sec.
+uint32_t agg_energy = UCLEARED;
+int last_current_ma = CLEARED;
+uint32_t last_current_alert_ts = UCLEARED;  // Use to fire single message if current leakage detected
+#define DEFAULT_CURRENT_INTERVAL_S  10.0 
+#define CURRENT_TOLERANCE_MA 1000
+#define STATUS_INTERVAL      3000           // Change status display every 3 sec.
 uint32_t last_display_update_ts = UCLEARED;
 bool status_state = false;                  // Indicate which status display to show: now=false, future=true
-bool reset_confirm = false;
 
 Adafruit_SSD1306 display = Adafruit_SSD1306(128, 64, &Wire);  // Use standard GPIO4-SDA, GPIO5-SCL
 Adafruit_BMP085 bmp;
@@ -203,7 +208,7 @@ uint32_t calc_mins(long time) {
 
 uint32_t calc_time_now() {
   // Calc how long passed since epoch time received
-  uint32_t passed = (millis() - epoch_recv_ts) / 1000;
+  uint32_t passed = (millis() - epoch_recv_ts) / 1000;  // div by 1000 since epoch time comes in seconds, not in millis 
   // Add passed time to epoch time.
   long now = epoch_time + passed;
   return calc_mins(now);
@@ -215,6 +220,17 @@ String lead_zero(uint8_t num) {
 
 String mins2str(uint32_t mins) {
   return lead_zero(mins / 60) + ":" + lead_zero(mins % 60);
+}
+
+Times calc_next_run() {
+  Times res;
+  res.now = calc_time_now();
+
+  // Calc when next turn on
+  res.on = start_time_h * 60 + start_time_m;
+  res.in = (res.now > res.on)?(24*60 - res.now + res.on):(res.on - res.now);
+
+  return res;
 }
 
 /***********************************************************************
@@ -244,17 +260,31 @@ void read_current() {
   *   Power per unit: 49mA * 230V = 11.25W TrueRMS.
   *   To calculate consumed energy: Average power * time in hours = kWh 
   */
-  int adc = 0;
+  int max_adc = 0;
+  int min_adc = 1024;
   for(int i = 0; i<100; i++) {
     int t = analogRead(A0);
     soft_delay(7);
-    if (t > adc) adc = t;
+    if (t > max_adc) max_adc = t;
+    if (t < min_adc) min_adc = t;
   }
-  int current = abs(adc - 476) * 49;    // mA   476 = arbitrary zero
-  int power = current * 230 / 1000;     // W 
-  energy += power;
-  powerNode.setProperty("current").setRetained(false).send("{\"current_ma\":" + String(current) + 
-      ",\"power_w\":" + String(power) + "}");
+  
+  last_current_ma = (max_adc - min_adc) / 2 * 52;        // * mA per unit, calibrated
+  if (relayState) {
+    int power = last_current_ma * 230 / 1000;     // W 
+    agg_energy += power;
+    if ((millis() - start_relay_time_ms) / 1000 % 600 < 10) {
+      powerNode.setProperty("current").setRetained(false).send("{\"current_ma\":" + String(last_current_ma) + 
+                                                              ",\"power_w\":" + String(power) + "}");
+    }
+  }
+
+  if (!relayState && last_current_ma > CURRENT_TOLERANCE_MA && 
+      (UCLEARED == last_current_alert_ts || millis() > last_current_alert_ts + (int)(WEATHER_PERIOD * 1000))) {
+    last_current_alert_ts = millis();
+    powerNode.setProperty("alert").setRetained(false).send("Current of " + String(last_current_ma) + " mA detected while boiler is off");
+    powerNode.setProperty("status").setRetained(false).send("min_adc:" + String(min_adc) + " max_adc:" + String(max_adc));
+  }
 }
 
 void read_bmp(bool is_ready) {
@@ -290,9 +320,7 @@ void read_bmp(bool is_ready) {
     return;
   }
   if (last_temp < min_temp) min_temp = last_temp;
-  powerNode.setProperty("weather").setRetained(false).send("{\"temperature\":" + String(last_temp) + 
-      // ",\"min_temp\":" + String(min_temp) + "}");
-      ",\"min_temp\":" + String(min_temp) + ",\"pressure\":" + String(last_pres) + ",\"time\":" + mins2str(minutes_now) + "}");
+  reportWeather();
   weather_timer.once(WEATHER_PERIOD, read_bmp, true);
 }
 
@@ -324,7 +352,9 @@ void display_status() {
   if (!status_state) {
     String s1 = "BOILER:" + String((relayState)?"ON":"OFF");
     if (relayState) {
-      String s2 = ">II " + String((pick_timeout(true) - (millis() - start_relay_time_ms)) / 1000 / 60) + " MIN";
+      String s2 = (manual_relay_duration_m > 0)?
+                  (">II " + String((pick_timeout(true) - (millis() - start_relay_time_ms)) / 1000 / 60) + " MIN"):
+                  "TAKE CARE";
       display.setCursor(0,32);
       display.println(s1.c_str());
       display.setCursor(0,50);
@@ -376,57 +406,21 @@ void display_duration() {
   display.display();
 }
 
-void display_reset() {
-#ifdef DEBUG
-  Homie.getLogger() << "Display reset " << String(current_state) << endl;
-#endif
-  char * h1 = " / : YES/NO";
-  char * h2 = "  LONG: DO";
-  h1[0] = 30;
-  h1[2] = 31;
-  h2[0] = 7;
-  String s1 = "RESET ALL?";
-  String s2 = (reset_confirm)?"YES":"NO";
-  display.clearDisplay();
-  display.setFont();
-  display.setTextColor(WHITE);
-  display.setCursor(0,0);
-  display.println(h1);
-  display.setCursor(0,10);
-  display.println(h2);
-  display.setFont(&FreeSans9pt7b);
-  display.setCursor(0,35);
-  display.println(s1);
-  display.setCursor(0,58);
-  display.println(s2);
-  display.display();
-}
-
 void onLongPressCtr() {
   // Long press means "exit from state"
   switch (current_state)
   {
   case SHOW_STATUS:
-    current_state = DURATION;
+    current_state = SET_DURATION;
     display_duration();
     break;
 
-  case DURATION:
+  case SET_DURATION:
     // total_relay_time_ms = manual_relay_duration_m * 60 * 1000;  // TODO: treat case of 0 duration
     run_reason = MANUAL;
     toggleRelay();
-    if (relayState) {
-      current_state = SHOW_STATUS;
-    } else {
-      current_state = RESET;
-      display_reset();
-    }
+    // TODO: check there is no bug here: the SHOW_STATUS should be enabled from loopHandler on relay change.
     break;
-
-  case RESET:
-    Homie.reset();  // TODO: Reset user settings
-    current_state = SHOW_STATUS;
-    break;  
 
   default:
     display_status();
@@ -444,8 +438,7 @@ void onPressCtr() {
   switch (current_state)
   {
   case SHOW_STATUS:
-  case DURATION:
-  case RESET:
+  case SET_DURATION:
     display_off();
     break;
 
@@ -468,13 +461,9 @@ void onPressUp() {
       current_state = DISPLAY_OFF;
       display_off();
       break;
-    case DURATION:
+    case SET_DURATION:
       manual_relay_duration_m += timeIncrementM_Setting.get();
       display_duration();
-      break;
-    case RESET:
-      reset_confirm = ! reset_confirm;
-      display_reset();
       break;
     default:
       display_status();
@@ -494,14 +483,10 @@ void onPressDn() {
       current_state = DISPLAY_OFF;
       display_off();
       break;
-    case DURATION:
+    case SET_DURATION:
       manual_relay_duration_m -= timeIncrementM_Setting.get();
       if (manual_relay_duration_m < 0) manual_relay_duration_m = 0;
       display_duration();
-      break;
-    case RESET:
-      reset_confirm = ! reset_confirm;
-      display_reset();
       break;
     default:
       display_status();
@@ -525,8 +510,10 @@ void setRelay(const bool on, uint32_t timeout = total_relay_time_ms) {
   // Do not set timer to turn relay off if timeout == 0
   if (timeout > 0) {
     current_relay_time_ms = timeout;  // Announce running time for LEDs.
+    current_timer_interval = timeout / RELAY_TIME_DENOM;
+    powerNode.setProperty("status").setRetained(false).send("Stop in " + String(timeout / 1000 / 60) + " minutes");
     setTimedLedColor();               // Turn LEDs as needed + run LED timer.
-    led_timer.attach(timeout / RELAY_TIME_DENOM, setTimedLedColor);
+    led_timer.attach(current_timer_interval, setTimedLedColor);
     relay_timer.once(timeout / 1000, offRelay);  // Set timer for relay only: LED is treated in setRelay
   } else {
     led_timer.attach(3.0, blink_led, PIN_LED_RED);
@@ -534,16 +521,17 @@ void setRelay(const bool on, uint32_t timeout = total_relay_time_ms) {
 
   if (relayState) {
     start_relay_time_ms = millis();
-    current_timer.attach(timeout / RELAY_TIME_DENOM, read_current);
-    energy = UCLEARED;
+    agg_energy = UCLEARED;
   } else {
     led_timer.detach();
-    current_timer.detach();
     blink_led(PIN_LED_BLUE);
     blink_led(PIN_LED_RED);
-    String e = String((((float)energy / (float)(RELAY_TIME_DENOM / 1000)) * (float)(millis() - start_relay_time_ms) / 1000.0 / 3600.0) / 1000.0);
+    uint32_t on_time_s = (millis() - start_relay_time_ms) / 1000;
+    // e = avg_current * hours / 1000 (kWh)
+    // avg_current = total_current / num_of_measures
+    String e = String((((float)agg_energy / ((float)on_time_s/DEFAULT_CURRENT_INTERVAL_S)) * (float)on_time_s / 3600.0) / 1000.0);
     powerNode.setProperty("current").setRetained(false).send("{\"energy_kwh\":" + e + "}");
-    energy = UCLEARED;
+    agg_energy = UCLEARED;
   }
 }
 
@@ -573,22 +561,26 @@ void toggleRelay() {
   setRelay(!relayState, pick_timeout(false));
 }
 
-// Separated relay control for scheduler
+// Separated relay control for scheduler. Runs relay with adapted timeout.
 void run_schedule() {
+  if (suspend_Setting.get()) return;
+
+  Times t = calc_next_run();
+  if (t.in != 0) return;
+
   // TODO: Improve adaptation of time with change of pressure: more clouds more time.
   adapted_relay_time_ms = total_relay_time_ms;
   
   // Do not change time if temperature is too low. Do not heat if temperature too high. Else Adapt.
   if (min_temp >= tempMaxC_Setting.get()) {
     powerNode.setProperty("status").setRetained(false).send("Skip heating water. Min.temp:" + String(min_temp));
-    calc_next_run();
     return;
   }
 
   if (min_temp >= tempMinC_Setting.get()) {
     uint8_t delta_t = tempMaxC_Setting.get() - tempMinC_Setting.get();
     int delta_now = min_temp - tempMinC_Setting.get();
-    if (delta_now > 0) adapted_relay_time_ms = delta_now * total_relay_time_ms / delta_t;
+    if (delta_now > 0) adapted_relay_time_ms = total_relay_time_ms - delta_now * total_relay_time_ms / delta_t;
   }  
 
 #ifdef DEBUG
@@ -631,8 +623,20 @@ bool heatForMHandler(const HomieRange& range, const String& value) {
   return true;
 }
 
-bool displayHandler(const HomieRange& range, const String& value) {
-  return true;
+// homie/boiler/boiler/factory-reset/set true - reboot remotely
+bool factoryResetHandler(const HomieRange& range, const String& value) {
+  if (value != "true") return false;
+
+  bool res = true;    
+  Dir dir = SPIFFS.openDir("/");
+  while (dir.next()) {
+    bool r = SPIFFS.remove(dir.fileName());
+    if (res && !r) res = r;  // Keep any negative result
+  }
+  powerNode.setProperty("status").setRetained(false).send("Configuration was" + String((res)?"":" not") + " removed");
+
+  Homie.reboot();
+  return true; 
 }
 
 // homie/boiler/boiler/reset/set true - reboot remotely
@@ -677,67 +681,83 @@ bool timeHandler(const HomieRange& range, const String& value) {
   time_timer.detach();
   epoch_time = val;
   epoch_recv_ts = millis();
-  calc_next_run();
+  reportTimeToRun();
   time_timer.once(7.0*24*3600, request_epoch);
+  reportEssentials();
   return true;
+}
+
+void reportTimeToRun() {
+  Times t = calc_next_run();
+
+  if (suspend_Setting.get()) {
+    powerNode.setProperty("status").setRetained(false).send("Boiler suspended, no plans for next run");
+    return;
+  }
+
+  if (t.in == 0) t.in = 24 * 60;
+  powerNode.setProperty("time2run").setRetained(false).send("{\"now\":\"" + mins2str(t.now) + 
+            "\",\"run\":\"" + mins2str(t.on) + "\",\"in\":\"" + mins2str(t.in) + "\"}");
 }
 
 // homie/boiler/boiler/time2run/set anything - ask how long to wait till next run. Response with MQTT
 bool timeToRunHandler(const HomieRange& range, const String& value) { 
-  uint32_t now_minutes = calc_time_now();
-
-  // Calc when next turn on
-  uint32_t on_minutes = start_time_h * 60 + start_time_m;
-  uint32_t mins2run = (now_minutes > on_minutes)?(24*60 - now_minutes + on_minutes):(on_minutes - now_minutes);
-  powerNode.setProperty("time2run").setRetained(false).send("{\"now\":\"" + mins2str(now_minutes) + 
-            "\",\"run\":\"" + mins2str(on_minutes) + "\",\"in\":\"" + mins2str(mins2run) + "\"}");
+  reportTimeToRun();
   return true;
 }
 
 // homie/boiler/boiler/repeat-for/set minutes - 100% of heating time when cold.
 bool repeatForHandler(const HomieRange& range, const String& value) {
   long val = value.toInt();
-  if (val <= 0 ) return false;
+  if (val <= 0) return false;
   total_relay_time_ms = val * 60 * 1000;
   storeVariable("total_relay_time_ms", total_relay_time_ms);
   return true;
 }
 
-// homie/boiler/boiler/repeat-every/set hours - Set period of run.
-bool repeatEveryHandler(const HomieRange& range, const String& value) {
+// homie/boiler/boiler/repeat-on-h/set hours - time to start initial schedule (then use interval of repeat-every).
+bool repeatOnHHandler(const HomieRange& range, const String& value) {
   long val = value.toInt();
-  if (val <= 0 ) return false;
-  start_every_h = val;
-  storeVariable("start_every_h", start_every_h);
+  if (val < 0 || val > 23) return false;
+  start_time_h = val;
+  storeVariable("start_time_h", start_time_h);
+  reportTimeToRun();
   return true;
 }
 
-bool suspendHandler(const HomieRange& range, const String& value) {
+// homie/boiler/boiler/repeat-on-m/set minutes - time to start initial schedule (then use interval of repeat-every).
+bool repeatOnMHandler(const HomieRange& range, const String& value) {
+  long val = value.toInt();
+  if (val < 0 || val > 59) return false;
+  start_time_m = val;
+  storeVariable("start_time_m", start_time_m);
+  reportTimeToRun();
   return true;
+}
+
+// bool suspendHandler(const HomieRange& range, const String& value) {
+//   return true;
+// }
+
+void reportWeather() {
+  powerNode.setProperty("weather").setRetained(false).send("{\"temperature\":" + String(last_temp) + 
+    // ",\"min_temp\":" + String(min_temp) + "}");
+    ",\"min_temp\":" + String(min_temp) + ",\"pressure\":" + String(last_pres) + ",\"time\":\"" + mins2str(calc_time_now()) + "\"}");
 }
 
 void reportEssentials() {
+  powerNode.setProperty("repeat-on-h").setRetained(false).send(String(start_time_h));
+  powerNode.setProperty("repeat-on-m").setRetained(false).send(String(start_time_m));
   powerNode.setProperty("repeat-for").setRetained(false).send(String(total_relay_time_ms / 60 / 1000));
-  powerNode.setProperty("repeat-every").setRetained(false).send(String(start_every_h));
   powerNode.setProperty("heat-now-m").setRetained(false).send(String(remote_relay_time_ms / 60 / 1000));
-  // powerNode.setProperty("max-seconds").setRetained(false).send(String());
-  // powerNode.setProperty("max-seconds").setRetained(false).send(String());
-  read_bmp(true);
+  powerNode.setProperty("on").setRetained(false).send(relayState ? "true" : "false");
+  // TODO: add report of calculated next run.
+  reportWeather();
 }
 
 void request_epoch() {
   // Request time if not set yet or set week ago.
   powerNode.setProperty("time").setRetained(false).send(String(millis()));
-}
-
-void calc_next_run() {
-  // Calculate when next time boiler should be on. Launch timer.
-  uint32_t now_minutes = calc_time_now();
-
-  // Calc when next turn on
-  uint32_t on_minutes = start_time_h * 60 + start_time_m;
-  float run_in = (now_minutes > on_minutes)?(24*60 - now_minutes + on_minutes):(on_minutes - now_minutes);
-  schedule_timer.once(run_in * 60.0, run_schedule);
 }
 
 
@@ -761,8 +781,8 @@ void loopHandler() {
   // Turn display off
   if ((millis() - last_interaction_ts > INTERACTION_TIMEOUT) && current_state != DISPLAY_OFF) display_off();
 
-  if (relayState != lastRelaystate && current_state != RESET) {
-    lastRelaystate = relayState;
+  if (relayState != last_relay_state) {
+    last_relay_state = relayState;
     display_status();
     current_state = SHOW_STATUS;
     last_interaction_ts = millis();
@@ -779,11 +799,12 @@ void loopHandler() {
 
 void setupHandler() {
   // Perform this function after Homie connected to Wifi.
-  setRelay(false);
   run_reason = AUTO;
+  led_timer.detach();
+  current_timer.attach(DEFAULT_CURRENT_INTERVAL_S, read_current);
+
   blink_led(PIN_LED_BLUE);
   blink_led(PIN_LED_RED);
-  // led_timer.attach(2.0, fade_led);
   
   display.stopscroll();
   display.display();
@@ -793,7 +814,7 @@ void setupHandler() {
   // Get epoch time from hub
   time_timer.attach(WEATHER_PERIOD, request_epoch);
   request_epoch();  // If request succeeded then time_timer will be retriggered for rare updates only.
-  reportEssentials();
+  schedule_timer.attach(60.0, run_schedule);
 }
 
 void setup() {
@@ -809,6 +830,7 @@ void setup() {
   digitalWrite(PIN_LED_RED, HIGH);
   digitalWrite(PIN_RELAY, LOW);
   relayState = LOW;
+  led_timer.attach(0.5, blink_led, PIN_LED_BLUE);
 
   // Init I2C ASAP to avoid conflicts with display
   read_bmp(false);
@@ -823,19 +845,20 @@ void setup() {
   // Prohibit the parameters to be set from MQTT broker
   powerNode.advertise("current");
   powerNode.advertise("status");
-  powerNode.advertise("display").settable(displayHandler);
+  powerNode.advertise("factory-reset").settable(factoryResetHandler);
   powerNode.advertise("reset").settable(resetHandler);
   powerNode.advertise("on").settable(relayOnHandler);
   powerNode.advertise("ls").settable(lsHandler);
   powerNode.advertise("cat").settable(catHandler);
   powerNode.advertise("alert");
   powerNode.advertise("weather").settable(weatherHandler); 
-  powerNode.advertise("time").settable(timeHandler);                 // Epoch time
-  powerNode.advertise("repeat-for").settable(repeatForHandler);      // Minutes schedule
-  powerNode.advertise("repeat-every").settable(repeatEveryHandler);      // Minutes schedule
-  powerNode.advertise("heat-now-m").settable(heatForMHandler);            // Minutes now
-  powerNode.advertise("suspend").settable(suspendHandler);           // true/false
-  powerNode.advertise("time2run").settable(timeToRunHandler);        // Ask how long is till scheduled run
+  powerNode.advertise("time").settable(timeHandler);                  // Epoch time
+  powerNode.advertise("repeat-on-h").settable(repeatOnHHandler);      // Start Hours schedule
+  powerNode.advertise("repeat-on-m").settable(repeatOnMHandler);      // Start Minutes schedule
+  powerNode.advertise("repeat-for").settable(repeatForHandler);       // MAx heat time Minutes schedule
+  powerNode.advertise("heat-now-m").settable(heatForMHandler);        // Minutes now
+  // powerNode.advertise("suspend").settable(suspendHandler);            // true/false
+  powerNode.advertise("time2run").settable(timeToRunHandler);         // Ask how long is till scheduled run
   
   timeIncrementM_Setting.setDefaultValue(10).setValidator([] (long candidate) {
     return (candidate >= 0) && (candidate <= 100);
@@ -849,13 +872,6 @@ void setup() {
   suspend_Setting.setDefaultValue(false).setValidator([] (bool candidate) {
     return true;
   });
-  repeatOn_Setting.setDefaultValue(5.55f).setValidator([] (double candidate) {
-    return (candidate > 0.0f) && (candidate < 24.0f) && (100*(candidate - (int) candidate) < 60);
-  });  // TODO: bug here, repeat_on is not read from settings
-  // TODO: replace with store/restore and regular handler.
-  // Calc time to turn relay on
-  start_time_h = (uint8_t) repeatOn_Setting.get();
-  start_time_m = (repeatOn_Setting.get() - start_time_h) * 100;
 
   Homie.setSetupFunction(setupHandler).setLoopFunction(loopHandler);
 
@@ -870,6 +886,8 @@ void setup() {
   button_dn.onPressed(onPressDn);
 
   total_relay_time_ms = restoreVariable("total_relay_time_ms", 45 * 60 * 1000);
+  start_time_h = restoreVariable("start_time_h", 5);
+  start_time_m = restoreVariable("start_time_m", 55);
   manual_relay_duration_m = total_relay_time_ms / 1000 / 60;
   adapted_relay_time_ms = total_relay_time_ms;
   current_state = SHOW_STATUS;
