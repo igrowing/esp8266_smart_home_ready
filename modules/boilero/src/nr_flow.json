@@ -1,0 +1,785 @@
+[
+    {
+        "id": "e57d8994.e26148",
+        "type": "tab",
+        "label": "Boiler",
+        "disabled": false,
+        "info": ""
+    },
+    {
+        "id": "119dc26b.da290e",
+        "type": "mqtt in",
+        "z": "e57d8994.e26148",
+        "name": "boiler",
+        "topic": "homie/boiler/#",
+        "qos": "2",
+        "broker": "2bd2afca.e962e",
+        "x": 90,
+        "y": 300,
+        "wires": [
+            [
+                "858a5980.fea5c8"
+            ]
+        ]
+    },
+    {
+        "id": "f7f69e50.05274",
+        "type": "schedex",
+        "z": "e57d8994.e26148",
+        "name": "",
+        "suspended": true,
+        "lat": "",
+        "lon": "",
+        "ontime": "07:28",
+        "ontopic": "homie/boiler/boiler/on/set",
+        "onpayload": "true",
+        "onoffset": 0,
+        "onrandomoffset": 0,
+        "offtime": "goldenHour",
+        "offtopic": "homie/boiler/boiler/on/set",
+        "offpayload": "false",
+        "offoffset": 0,
+        "offrandomoffset": 0,
+        "mon": true,
+        "tue": true,
+        "wed": true,
+        "thu": true,
+        "fri": true,
+        "sat": true,
+        "sun": true,
+        "x": 150,
+        "y": 220,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "f427da24.a5c238",
+        "type": "debug",
+        "z": "e57d8994.e26148",
+        "name": "",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "false",
+        "x": 890,
+        "y": 80,
+        "wires": []
+    },
+    {
+        "id": "59946ab5.30c9a4",
+        "type": "mqtt out",
+        "z": "e57d8994.e26148",
+        "name": "boiler",
+        "topic": "",
+        "qos": "",
+        "retain": "",
+        "broker": "2bd2afca.e962e",
+        "x": 950,
+        "y": 140,
+        "wires": []
+    },
+    {
+        "id": "8261bc07.d67f5",
+        "type": "persist out",
+        "z": "e57d8994.e26148",
+        "name": "boiler_enable",
+        "storageNode": "819a90a0.c64e",
+        "x": 140,
+        "y": 100,
+        "wires": [
+            [
+                "69e50468.51025c"
+            ]
+        ]
+    },
+    {
+        "id": "69e50468.51025c",
+        "type": "ui_switch",
+        "z": "e57d8994.e26148",
+        "name": "enable_boiler",
+        "label": "Enable heating",
+        "tooltip": "Suspend when on vacation",
+        "group": "2a101ace.e25016",
+        "order": 2,
+        "width": "4",
+        "height": "1",
+        "passthru": true,
+        "decouple": "false",
+        "topic": "homie/boiler/$implementation/config/set",
+        "style": "",
+        "onvalue": "{\"settings\":{\"suspend\":false}}",
+        "onvalueType": "json",
+        "onicon": "",
+        "oncolor": "",
+        "offvalue": "{\"settings\":{\"suspend\":true}}",
+        "offvalueType": "json",
+        "officon": "",
+        "offcolor": "",
+        "x": 340,
+        "y": 100,
+        "wires": [
+            [
+                "32dd8956.442486",
+                "59946ab5.30c9a4"
+            ]
+        ]
+    },
+    {
+        "id": "32dd8956.442486",
+        "type": "persist in",
+        "z": "e57d8994.e26148",
+        "name": "boiler_enable",
+        "storageNode": "819a90a0.c64e",
+        "x": 580,
+        "y": 80,
+        "wires": []
+    },
+    {
+        "id": "858a5980.fea5c8",
+        "type": "switch",
+        "z": "e57d8994.e26148",
+        "name": "",
+        "property": "topic",
+        "propertyType": "msg",
+        "rules": [
+            {
+                "t": "regex",
+                "v": "/time$",
+                "vt": "str",
+                "case": true
+            },
+            {
+                "t": "regex",
+                "v": "/on$",
+                "vt": "str",
+                "case": true
+            },
+            {
+                "t": "cont",
+                "v": "stats/signal",
+                "vt": "str"
+            },
+            {
+                "t": "regex",
+                "v": "weather$",
+                "vt": "str",
+                "case": true
+            },
+            {
+                "t": "regex",
+                "v": "current$",
+                "vt": "str",
+                "case": false
+            }
+        ],
+        "checkall": "false",
+        "repair": false,
+        "outputs": 5,
+        "x": 240,
+        "y": 300,
+        "wires": [
+            [
+                "4c075a45.edac24"
+            ],
+            [
+                "d1270cd5.ada8f",
+                "7bafee2b.aa30c",
+                "b05c3a48.9138f8"
+            ],
+            [
+                "45339cd0.7c92b4"
+            ],
+            [
+                "b9a960a.b9745a"
+            ],
+            [
+                "1e5de47f.27864c"
+            ]
+        ]
+    },
+    {
+        "id": "45339cd0.7c92b4",
+        "type": "ui_gauge",
+        "z": "e57d8994.e26148",
+        "name": "Wifi",
+        "group": "2a101ace.e25016",
+        "order": 1,
+        "width": "2",
+        "height": "2",
+        "gtype": "gage",
+        "title": "WiFi",
+        "label": "%",
+        "format": "{{value}}",
+        "min": 0,
+        "max": "100",
+        "colors": [
+            "#dd0000",
+            "#e6e600",
+            "#009b27"
+        ],
+        "seg1": "30",
+        "seg2": "60",
+        "x": 410,
+        "y": 360,
+        "wires": []
+    },
+    {
+        "id": "d1270cd5.ada8f",
+        "type": "ui_switch",
+        "z": "e57d8994.e26148",
+        "name": "boiler",
+        "label": "Heat now...",
+        "tooltip": "Turn on/off remotely",
+        "group": "2a101ace.e25016",
+        "order": 3,
+        "width": "4",
+        "height": "1",
+        "passthru": false,
+        "decouple": "true",
+        "topic": "homie/boiler/boiler/on/set",
+        "style": "",
+        "onvalue": "true",
+        "onvalueType": "str",
+        "onicon": "",
+        "oncolor": "",
+        "offvalue": "false",
+        "offvalueType": "str",
+        "officon": "",
+        "offcolor": "",
+        "x": 430,
+        "y": 180,
+        "wires": [
+            [
+                "999e6cfa.5dd5e"
+            ]
+        ]
+    },
+    {
+        "id": "187354b4.025aab",
+        "type": "ui_numeric",
+        "z": "e57d8994.e26148",
+        "name": "",
+        "label": "Hour",
+        "tooltip": "What time start heating?",
+        "group": "bef020ca.da9ee",
+        "order": 2,
+        "width": "3",
+        "height": "1",
+        "passthru": true,
+        "topic": "homie/boiler/boiler/repeat-on-h/set",
+        "format": "{{value}}",
+        "min": 0,
+        "max": "23",
+        "step": 1,
+        "x": 630,
+        "y": 360,
+        "wires": [
+            [
+                "2f261e15.8c3702"
+            ]
+        ]
+    },
+    {
+        "id": "16ee4a2a.996796",
+        "type": "ui_numeric",
+        "z": "e57d8994.e26148",
+        "name": "",
+        "label": "Min",
+        "tooltip": "What time start heating?",
+        "group": "bef020ca.da9ee",
+        "order": 3,
+        "width": "3",
+        "height": "1",
+        "passthru": true,
+        "topic": "homie/boiler/boiler/repeat-on-m/set",
+        "format": "{{value}}",
+        "min": 0,
+        "max": "59",
+        "step": 1,
+        "x": 770,
+        "y": 360,
+        "wires": [
+            [
+                "2f261e15.8c3702"
+            ]
+        ]
+    },
+    {
+        "id": "239249a1.a98f46",
+        "type": "ui_numeric",
+        "z": "e57d8994.e26148",
+        "name": "",
+        "label": "Heat for _ minutes",
+        "tooltip": "Max heating time in worst weather (cold and cloudy)",
+        "group": "bef020ca.da9ee",
+        "order": 4,
+        "width": "0",
+        "height": "0",
+        "passthru": false,
+        "topic": "homie/boiler/boiler/repeat-for/set",
+        "format": "{{value}}",
+        "min": 0,
+        "max": "120",
+        "step": "5",
+        "x": 670,
+        "y": 400,
+        "wires": [
+            [
+                "2f261e15.8c3702"
+            ]
+        ]
+    },
+    {
+        "id": "75b57d3a.816364",
+        "type": "ui_text",
+        "z": "e57d8994.e26148",
+        "group": "bef020ca.da9ee",
+        "order": 1,
+        "width": 0,
+        "height": 0,
+        "name": "",
+        "label": "-= Set boiler to turn on at =-",
+        "format": "{{msg.payload}}",
+        "layout": "row-center",
+        "x": 700,
+        "y": 320,
+        "wires": []
+    },
+    {
+        "id": "2f261e15.8c3702",
+        "type": "trigger",
+        "z": "e57d8994.e26148",
+        "op1": "",
+        "op2": "",
+        "op1type": "nul",
+        "op2type": "payl",
+        "duration": "10",
+        "extend": true,
+        "units": "s",
+        "reset": "",
+        "bytopic": "topic",
+        "name": "",
+        "x": 910,
+        "y": 400,
+        "wires": [
+            [
+                "59946ab5.30c9a4"
+            ]
+        ]
+    },
+    {
+        "id": "fd95a9b.e25df58",
+        "type": "link out",
+        "z": "e57d8994.e26148",
+        "name": "2influx",
+        "links": [
+            "3aa7d42d.f2b61c"
+        ],
+        "x": 415,
+        "y": 440,
+        "wires": []
+    },
+    {
+        "id": "4c075a45.edac24",
+        "type": "function",
+        "z": "e57d8994.e26148",
+        "name": "Epoch time",
+        "func": "var x = new Date();\nvar tzOffsetMin = x.getTimezoneOffset();\n\nmsg.topic = msg.topic + \"/set\";\nmsg.payload = Date.now() - tzOffsetMin * 60 * 1000;\n\nvar min = 60 * 1000;\nvar hour = min * 60;\nvar day = hour * 24;\nvar year = day * 365;\nvar hours_today = Math.floor(msg.payload % day / hour);\nvar mins_today = Math.floor(msg.payload % hour / min);\nnode.status({text: hours_today + \":\" + mins_today});\n\nreturn msg;",
+        "outputs": 1,
+        "noerr": 0,
+        "x": 410,
+        "y": 140,
+        "wires": [
+            [
+                "59946ab5.30c9a4"
+            ]
+        ]
+    },
+    {
+        "id": "6d105973.944708",
+        "type": "ui_slider",
+        "z": "e57d8994.e26148",
+        "name": "",
+        "label": "...for {{ value }} min",
+        "tooltip": "",
+        "group": "2a101ace.e25016",
+        "order": 4,
+        "width": 0,
+        "height": 0,
+        "passthru": true,
+        "outs": "end",
+        "topic": "timeout",
+        "min": "10",
+        "max": "120",
+        "step": "5",
+        "x": 710,
+        "y": 220,
+        "wires": [
+            [
+                "999e6cfa.5dd5e"
+            ]
+        ]
+    },
+    {
+        "id": "2f28e6d6.9513fa",
+        "type": "inject",
+        "z": "e57d8994.e26148",
+        "name": "",
+        "topic": "",
+        "payload": "10",
+        "payloadType": "num",
+        "repeat": "",
+        "crontab": "",
+        "once": true,
+        "onceDelay": 0.1,
+        "x": 590,
+        "y": 220,
+        "wires": [
+            [
+                "6d105973.944708"
+            ]
+        ]
+    },
+    {
+        "id": "f26e3337.0b9c2",
+        "type": "function",
+        "z": "e57d8994.e26148",
+        "name": "UI_to_flow_context",
+        "func": "flow.set(\"boiler_timeout\", msg.payload);\nreturn null;",
+        "outputs": 1,
+        "noerr": 0,
+        "x": 890,
+        "y": 40,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "999e6cfa.5dd5e",
+        "type": "function",
+        "z": "e57d8994.e26148",
+        "name": "power+timeout",
+        "func": "var tout = context.get(\"boiler_timeout\") || 10;\nif (msg.topic == \"timeout\") {\n    context.set(\"boiler_timeout\", msg.payload);\n    return;\n}\nvar tom = {topic: \"homie/boiler/boiler/heat-now-m/set\", payload: tout};\nnode.send(tom);\nreturn msg;",
+        "outputs": 1,
+        "noerr": 0,
+        "x": 620,
+        "y": 180,
+        "wires": [
+            [
+                "2c26e1bf.30142e"
+            ]
+        ]
+    },
+    {
+        "id": "5edaaad8.0eca34",
+        "type": "ui_chart",
+        "z": "e57d8994.e26148",
+        "name": "",
+        "group": "2a101ace.e25016",
+        "order": 4,
+        "width": "6",
+        "height": "2",
+        "label": "Boiler history",
+        "chartType": "line",
+        "legend": "false",
+        "xformat": "HH:mm",
+        "interpolate": "step",
+        "nodata": "",
+        "dot": true,
+        "ymin": "0",
+        "ymax": "1",
+        "removeOlder": "3",
+        "removeOlderPoints": "",
+        "removeOlderUnit": "86400",
+        "cutout": 0,
+        "useOneColor": false,
+        "colors": [
+            "#1f77b4",
+            "#aec7e8",
+            "#ff7f0e",
+            "#2ca02c",
+            "#98df8a",
+            "#d62728",
+            "#ff9896",
+            "#9467bd",
+            "#c5b0d5"
+        ],
+        "useOldStyle": false,
+        "outputs": 1,
+        "x": 590,
+        "y": 260,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "7bafee2b.aa30c",
+        "type": "function",
+        "z": "e57d8994.e26148",
+        "name": "msg2digit",
+        "func": "var old = msg.payload;\nnode.status({text: msg.topic + ':???:' +old});\nif (msg.payload === null) return;\n\nif (msg.payload === true || \n    msg.payload.toLowerCase() == 'open' || \n    msg.payload.toLowerCase() == 'on' ||\n    msg.payload.toLowerCase() == 'true' ||\n    parseInt(msg.payload) > 0) { msg.payload = 1 }\nelse if (msg.payload === false || \n    msg.payload.toLowerCase() == 'close' || \n    msg.payload.toLowerCase() == 'off' ||\n    msg.payload.toLowerCase() == 'false' ||\n    parseInt(msg.payload) <= 0) { msg.payload = 0 }\n    else return;\n\nnode.status({text: old + \">>\" + msg.payload});\n\ntry{\n    // Get 2nd word from the end of topic\n    msg.topic = msg.topic.split('/').slice(-2)[0];\n} catch (er) {\n    node.status({text: 'Topic error'});\n    return null;\n}\nnode.status({text: '>>' + old + \",\" + msg.payload});\n\nreturn msg;",
+        "outputs": 1,
+        "noerr": 0,
+        "x": 420,
+        "y": 240,
+        "wires": [
+            [
+                "5edaaad8.0eca34"
+            ]
+        ]
+    },
+    {
+        "id": "2c26e1bf.30142e",
+        "type": "trigger",
+        "z": "e57d8994.e26148",
+        "op1": "",
+        "op2": "",
+        "op1type": "pay",
+        "op2type": "payl",
+        "duration": "1",
+        "extend": true,
+        "units": "s",
+        "reset": "",
+        "bytopic": "all",
+        "name": "delay1sec",
+        "x": 800,
+        "y": 180,
+        "wires": [
+            [
+                "59946ab5.30c9a4"
+            ]
+        ]
+    },
+    {
+        "id": "d9d9f173.a5254",
+        "type": "inject",
+        "z": "e57d8994.e26148",
+        "name": "",
+        "topic": "",
+        "payload": "50",
+        "payloadType": "num",
+        "repeat": "",
+        "crontab": "",
+        "once": true,
+        "onceDelay": 0.1,
+        "x": 510,
+        "y": 400,
+        "wires": [
+            [
+                "239249a1.a98f46"
+            ]
+        ]
+    },
+    {
+        "id": "477b79c3.008128",
+        "type": "function",
+        "z": "e57d8994.e26148",
+        "name": "build_config_msg",
+        "func": "var tout = '{\"settings\":{\"' + msg.topic + '\":' + msg.payload + '}}';\nvar tom = {topic: \"homie/boiler/$implementation/config/set\", payload: tout};\nreturn tom;",
+        "outputs": 1,
+        "noerr": 0,
+        "x": 750,
+        "y": 460,
+        "wires": [
+            [
+                "2f261e15.8c3702"
+            ]
+        ]
+    },
+    {
+        "id": "67b16479.91195c",
+        "type": "ui_numeric",
+        "z": "e57d8994.e26148",
+        "name": "",
+        "label": "Min Temp",
+        "tooltip": "Set air temperature for max water heating",
+        "group": "bef020ca.da9ee",
+        "order": 5,
+        "width": "3",
+        "height": "1",
+        "passthru": true,
+        "topic": "temp_min_c",
+        "format": "{{value}}",
+        "min": 0,
+        "max": "25",
+        "step": 1,
+        "x": 560,
+        "y": 460,
+        "wires": [
+            [
+                "477b79c3.008128"
+            ]
+        ]
+    },
+    {
+        "id": "44c98df0.53ae04",
+        "type": "ui_numeric",
+        "z": "e57d8994.e26148",
+        "name": "",
+        "label": "Max Temp",
+        "tooltip": "Set air temperature for disable water heating",
+        "group": "bef020ca.da9ee",
+        "order": 6,
+        "width": "3",
+        "height": "1",
+        "passthru": true,
+        "topic": "temp_max_c",
+        "format": "{{value}}",
+        "min": "20",
+        "max": "50",
+        "step": 1,
+        "x": 570,
+        "y": 500,
+        "wires": [
+            [
+                "477b79c3.008128"
+            ]
+        ]
+    },
+    {
+        "id": "74d20b26.e84d24",
+        "type": "function",
+        "z": "e57d8994.e26148",
+        "name": "json2influx_obj",
+        "func": "var obj = {};\n/* Set station name here */\nobj.station = \"boiler\";\n\nobj.temperature=msg.payload.temperature;\nobj.pressure=msg.payload.pressure;\n\nmsg.payload = obj;\nmsg.topic = \"\";\nnode.status({text: JSON.stringify(obj)});\nreturn msg;",
+        "outputs": 1,
+        "noerr": 0,
+        "x": 260,
+        "y": 440,
+        "wires": [
+            [
+                "fd95a9b.e25df58"
+            ]
+        ]
+    },
+    {
+        "id": "b9a960a.b9745a",
+        "type": "json",
+        "z": "e57d8994.e26148",
+        "name": "",
+        "property": "payload",
+        "action": "obj",
+        "pretty": false,
+        "x": 110,
+        "y": 440,
+        "wires": [
+            [
+                "74d20b26.e84d24"
+            ]
+        ]
+    },
+    {
+        "id": "b05c3a48.9138f8",
+        "type": "function",
+        "z": "e57d8994.e26148",
+        "name": "json2influx_obj",
+        "func": "var obj = {};\n/* Set station name here */\nobj.station = \"boiler\";\nobj.on=(msg.payload === \"true\")?1:0;\nmsg.payload = obj;\nmsg.topic = \"\";\nnode.status({text: JSON.stringify(obj)});\nreturn msg;",
+        "outputs": 1,
+        "noerr": 0,
+        "x": 440,
+        "y": 300,
+        "wires": [
+            [
+                "fd95a9b.e25df58"
+            ]
+        ]
+    },
+    {
+        "id": "4235dc4d.9c0964",
+        "type": "function",
+        "z": "e57d8994.e26148",
+        "name": "json2influx_obj",
+        "func": "var obj = {};\n/* Set station name here */\nobj.station = \"boiler\";\n\nnode.status({text: JSON.stringify(obj)});\nif (\"energy_kwh\" in msg.payload) {\n    obj.kwh=msg.payload.energy_kwh;\n    msg.payload = obj;\n    msg.topic = \"\";\n    return msg;\n}\n",
+        "outputs": 1,
+        "noerr": 0,
+        "x": 260,
+        "y": 380,
+        "wires": [
+            [
+                "fd95a9b.e25df58"
+            ]
+        ]
+    },
+    {
+        "id": "1e5de47f.27864c",
+        "type": "json",
+        "z": "e57d8994.e26148",
+        "name": "",
+        "property": "payload",
+        "action": "obj",
+        "pretty": false,
+        "x": 110,
+        "y": 380,
+        "wires": [
+            [
+                "4235dc4d.9c0964"
+            ]
+        ]
+    },
+    {
+        "id": "43b867a6.5f1348",
+        "type": "comment",
+        "z": "e57d8994.e26148",
+        "name": "Set scheduler if needed",
+        "info": "",
+        "x": 140,
+        "y": 180,
+        "wires": []
+    },
+    {
+        "id": "2bd2afca.e962e",
+        "type": "mqtt-broker",
+        "z": "",
+        "name": "",
+        "broker": "localhost",
+        "port": "1883",
+        "clientid": "",
+        "usetls": false,
+        "compatmode": true,
+        "keepalive": "60",
+        "cleansession": true,
+        "birthTopic": "",
+        "birthQos": "0",
+        "birthPayload": "",
+        "willTopic": "",
+        "willQos": "0",
+        "willPayload": ""
+    },
+    {
+        "id": "819a90a0.c64e",
+        "type": "persist-store",
+        "z": "",
+        "filename": "boiler_enable.json",
+        "interval": "7200"
+    },
+    {
+        "id": "2a101ace.e25016",
+        "type": "ui_group",
+        "z": "",
+        "name": "Boiler",
+        "tab": "531ef1f0.9a426",
+        "disp": true,
+        "width": "6",
+        "collapse": false
+    },
+    {
+        "id": "bef020ca.da9ee",
+        "type": "ui_group",
+        "z": "",
+        "name": "Boiler: settings",
+        "tab": "531ef1f0.9a426",
+        "disp": true,
+        "width": "6",
+        "collapse": true
+    },
+    {
+        "id": "531ef1f0.9a426",
+        "type": "ui_tab",
+        "z": "",
+        "name": "MyHome",
+        "icon": "home",
+        "order": 1
+    }
+]
