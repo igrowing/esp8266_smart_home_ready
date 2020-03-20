@@ -6,7 +6,7 @@
 // has bug fixes, don't use stock lib:
 #include "../lib/Adafruit_BMP085/src/Adafruit_BMP085.h"
 
-#define FW_VER       "1.0.С" 
+#define FW_VER       "1.0.D" 
 // #define DEBUG
 
 #define PIN_BTN_CTR  0
@@ -58,10 +58,6 @@ volatile bool last_relay_state = false;   // Used to display the state change wh
 volatile bool relayState;               // Keeps actual relay status
 
 HomieNode powerNode("boiler", "switch");
-HomieSetting<long> tempMinC_Setting("temp_min_c", "Temperature to use 100% of timer");  // id, description
-HomieSetting<long> tempMaxC_Setting("temp_max_c", "Temperature to use 0% of timer");  // id, description
-HomieSetting<long> timeIncrementM_Setting("time_increment_m", "Minutes to increase/decrease on every +/- button click");  // id, description
-HomieSetting<bool> suspend_Setting("suspend", "Suspend automation while on vacation");  // id, description
 
 EasyButton button_ctr(PIN_BTN_CTR);
 EasyButton button_up(PIN_BTN_UP);
@@ -107,6 +103,11 @@ uint32_t last_current_alert_ts = UCLEARED;  // Use to fire single message if cur
 uint32_t last_display_update_ts = UCLEARED;
 bool status_state = false;                  // Indicate which status display to show: now=false, future=true
 
+bool suspend = false;
+uint8_t tempMinC = 15;
+uint8_t tempMaxC = 25;
+uint8_t timeIncrementM = 10;
+
 Adafruit_SSD1306 display = Adafruit_SSD1306(128, 64, &Wire);  // Use standard GPIO4-SDA, GPIO5-SCL
 Adafruit_BMP085 bmp;
 Ticker weather_timer;                     // Manage weather sensor
@@ -140,6 +141,7 @@ uint32_t restoreVariable(char *name, uint32_t def_val = ERR_NUM) {
 #ifdef DEBUG
     Serial.println(">> " + String(name) + ": " + val);
     Serial.flush();
+    powerNode.setProperty("status").setRetained(false).send(">> " + String(name) + ": " + String(val));
 #endif
     return (val != "")?atol(val.c_str()):def_val;
   } else {
@@ -159,7 +161,8 @@ bool storeVariable(char *name, uint32_t val) {
     msg_q.push(&r);
   }
 
-  if (restoreVariable(name) == val) return true;  // Avoid wearout
+  uint32_t restored = restoreVariable(name);
+  if ((restored == val) && (restored != ERR_NUM)) return true;  // Avoid wearout
 
   File file = SPIFFS.open(PREFIX_VAR + String(name), "w");
   if (!file.print(String(val))) {
@@ -310,7 +313,7 @@ void read_bmp(bool is_ready) {
   last_pres = bmp.readPressure() / 100;
   if (last_pres < 600) last_pres *= 2;  // Correction of measure when sensor gets crazy.
   last_temp = bmp.readTemperature();
-  last_temp = bmp.readTemperature();
+  last_temp = bmp.readTemperature() - 9;  // TODO: Improve Correction due to local heating Empirically.
 
   if (last_temp > 50) {
 #ifdef DEBUG
@@ -462,7 +465,7 @@ void onPressUp() {
       display_off();
       break;
     case SET_DURATION:
-      manual_relay_duration_m += timeIncrementM_Setting.get();
+      manual_relay_duration_m += timeIncrementM;
       display_duration();
       break;
     default:
@@ -484,7 +487,7 @@ void onPressDn() {
       display_off();
       break;
     case SET_DURATION:
-      manual_relay_duration_m -= timeIncrementM_Setting.get();
+      manual_relay_duration_m -= timeIncrementM;
       if (manual_relay_duration_m < 0) manual_relay_duration_m = 0;
       display_duration();
       break;
@@ -563,7 +566,7 @@ void toggleRelay() {
 
 // Separated relay control for scheduler. Runs relay with adapted timeout.
 void run_schedule() {
-  if (suspend_Setting.get()) return;
+  if (suspend) return;
 
   Times t = calc_next_run();
   if (t.in != 0) return;
@@ -572,14 +575,14 @@ void run_schedule() {
   adapted_relay_time_ms = total_relay_time_ms;
   
   // Do not change time if temperature is too low. Do not heat if temperature too high. Else Adapt.
-  if (min_temp >= tempMaxC_Setting.get()) {
+  if (min_temp >= tempMaxC) {
     powerNode.setProperty("status").setRetained(false).send("Skip heating water. Min.temp:" + String(min_temp));
     return;
   }
 
-  if (min_temp >= tempMinC_Setting.get()) {
-    uint8_t delta_t = tempMaxC_Setting.get() - tempMinC_Setting.get();
-    int delta_now = min_temp - tempMinC_Setting.get();
+  if (min_temp >= tempMinC) {
+    uint8_t delta_t = tempMaxC - tempMinC;
+    int delta_now = min_temp - tempMinC;
     if (delta_now > 0) adapted_relay_time_ms = total_relay_time_ms - delta_now * total_relay_time_ms / delta_t;
   }  
 
@@ -690,7 +693,7 @@ bool timeHandler(const HomieRange& range, const String& value) {
 void reportTimeToRun() {
   Times t = calc_next_run();
 
-  if (suspend_Setting.get()) {
+  if (suspend) {
     powerNode.setProperty("status").setRetained(false).send("Boiler suspended, no plans for next run");
     return;
   }
@@ -735,9 +738,43 @@ bool repeatOnMHandler(const HomieRange& range, const String& value) {
   return true;
 }
 
-// bool suspendHandler(const HomieRange& range, const String& value) {
-//   return true;
-// }
+// homie/boiler/boiler/suspend/set true/false - suspend/resume boiler automation.
+bool suspendHandler(const HomieRange& range, const String& value) {
+  if ((value == "true") || (value == "false")) {
+    suspend = value == "true";
+    storeVariable("suspend", suspend);
+    return true;
+  }
+  return false;
+}
+
+// homie/boiler/boiler/temp-min-c/set number - Lowest air temperature which allows max heating time.
+bool tempMinCHandler(const HomieRange& range, const String& value) {
+  uint8_t val = value.toInt();
+  if (val <= 0 || val > tempMaxC) return false;
+  tempMinC = val;
+  storeVariable("tempMinC", tempMinC);
+  return true;
+}
+
+// homie/boiler/boiler/temp-max-c/set number - Highest air temperature which stops heating.
+bool tempMaxCHandler(const HomieRange& range, const String& value) {
+  uint8_t val = value.toInt();
+  if (val < tempMinC || val > 50) return false;
+  tempMaxC = val;
+  storeVariable("tempMaxC", tempMaxC);
+  return true;
+}
+
+// homie/boiler/boiler/time-increment-m/set number - Increment/decrement time by buttons.
+bool timeIncrementMHandler(const HomieRange& range, const String& value) {
+  uint8_t val = value.toInt();
+  if (val <= 0 || val > 60) return false;
+  timeIncrementM = val;
+  storeVariable("timeIncrementM", timeIncrementM);
+  return true;
+}
+
 
 void reportWeather() {
   powerNode.setProperty("weather").setRetained(false).send("{\"temperature\":" + String(last_temp) + 
@@ -746,12 +783,15 @@ void reportWeather() {
 }
 
 void reportEssentials() {
+  powerNode.setProperty("time-incremrent-m").setRetained(false).send(String(timeIncrementM));
+  powerNode.setProperty("temp-max-c").setRetained(false).send(String(tempMaxC));
+  powerNode.setProperty("temp-min-c").setRetained(false).send(String(tempMinC));
+  powerNode.setProperty("suspend").setRetained(false).send(suspend ? "true" : "false");
   powerNode.setProperty("repeat-on-h").setRetained(false).send(String(start_time_h));
   powerNode.setProperty("repeat-on-m").setRetained(false).send(String(start_time_m));
   powerNode.setProperty("repeat-for").setRetained(false).send(String(total_relay_time_ms / 60 / 1000));
   powerNode.setProperty("heat-now-m").setRetained(false).send(String(remote_relay_time_ms / 60 / 1000));
   powerNode.setProperty("on").setRetained(false).send(relayState ? "true" : "false");
-  // TODO: add report of calculated next run.
   reportWeather();
 }
 
@@ -857,22 +897,12 @@ void setup() {
   powerNode.advertise("repeat-on-m").settable(repeatOnMHandler);      // Start Minutes schedule
   powerNode.advertise("repeat-for").settable(repeatForHandler);       // MAx heat time Minutes schedule
   powerNode.advertise("heat-now-m").settable(heatForMHandler);        // Minutes now
-  // powerNode.advertise("suspend").settable(suspendHandler);            // true/false
+  powerNode.advertise("time-increment-m").settable(timeIncrementMHandler);        // Minutes now
+  powerNode.advertise("temp-min-c").settable(tempMinCHandler);        // Minutes now
+  powerNode.advertise("temp-max-c").settable(tempMaxCHandler);        // Minutes now
+  powerNode.advertise("suspend").settable(suspendHandler);            // true/false
   powerNode.advertise("time2run").settable(timeToRunHandler);         // Ask how long is till scheduled run
   
-  timeIncrementM_Setting.setDefaultValue(10).setValidator([] (long candidate) {
-    return (candidate >= 0) && (candidate <= 100);
-  });
-  tempMinC_Setting.setDefaultValue(16).setValidator([] (long candidate) {
-    return (candidate >= 0) && (candidate <= tempMaxC_Setting.get());
-  });
-  tempMaxC_Setting.setDefaultValue(23).setValidator([] (long candidate) {
-    return (candidate >= tempMinC_Setting.get()) && (candidate <= 50);
-  });
-  suspend_Setting.setDefaultValue(false).setValidator([] (bool candidate) {
-    return true;
-  });
-
   Homie.setSetupFunction(setupHandler).setLoopFunction(loopHandler);
 
   Homie.setup();
@@ -885,6 +915,10 @@ void setup() {
   button_up.onPressed(onPressUp);
   button_dn.onPressed(onPressDn);
 
+  suspend = restoreVariable("suspend", false);
+  timeIncrementM = restoreVariable("timeIncrementM", 10);
+  tempMinC = restoreVariable("tempMinC", 15);
+  tempMaxC = restoreVariable("tempMaxC", 25);
   total_relay_time_ms = restoreVariable("total_relay_time_ms", 45 * 60 * 1000);
   start_time_h = restoreVariable("start_time_h", 5);
   start_time_m = restoreVariable("start_time_m", 55);

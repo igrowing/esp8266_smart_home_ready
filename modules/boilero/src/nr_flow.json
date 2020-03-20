@@ -15,7 +15,7 @@
         "qos": "2",
         "broker": "2bd2afca.e962e",
         "x": 90,
-        "y": 300,
+        "y": 320,
         "wires": [
             [
                 "858a5980.fea5c8"
@@ -63,7 +63,7 @@
         "console": false,
         "tostatus": false,
         "complete": "false",
-        "x": 890,
+        "x": 850,
         "y": 80,
         "wires": []
     },
@@ -107,14 +107,14 @@
         "height": "1",
         "passthru": true,
         "decouple": "false",
-        "topic": "homie/boiler/$implementation/config/set",
+        "topic": "homie/boiler/boiler/suspend/set",
         "style": "",
-        "onvalue": "{\"settings\":{\"suspend\":false}}",
-        "onvalueType": "json",
+        "onvalue": "false",
+        "onvalueType": "bool",
         "onicon": "",
         "oncolor": "",
-        "offvalue": "{\"settings\":{\"suspend\":true}}",
-        "offvalueType": "json",
+        "offvalue": "true",
+        "offvalueType": "bool",
         "officon": "",
         "offcolor": "",
         "x": 340,
@@ -171,14 +171,38 @@
                 "t": "regex",
                 "v": "current$",
                 "vt": "str",
+                "case": true
+            },
+            {
+                "t": "regex",
+                "v": "temp-min-c$",
+                "vt": "str",
+                "case": true
+            },
+            {
+                "t": "regex",
+                "v": "temp-max-c$",
+                "vt": "str",
+                "case": false
+            },
+            {
+                "t": "regex",
+                "v": "time-increment-m$",
+                "vt": "str",
+                "case": false
+            },
+            {
+                "t": "regex",
+                "v": "suspend$",
+                "vt": "str",
                 "case": false
             }
         ],
         "checkall": "false",
         "repair": false,
-        "outputs": 5,
-        "x": 240,
-        "y": 300,
+        "outputs": 9,
+        "x": 230,
+        "y": 320,
         "wires": [
             [
                 "4c075a45.edac24"
@@ -196,7 +220,15 @@
             ],
             [
                 "1e5de47f.27864c"
-            ]
+            ],
+            [
+                "67b16479.91195c"
+            ],
+            [
+                "44c98df0.53ae04"
+            ],
+            [],
+            []
         ]
     },
     {
@@ -221,7 +253,7 @@
         ],
         "seg1": "30",
         "seg2": "60",
-        "x": 410,
+        "x": 430,
         "y": 360,
         "wires": []
     },
@@ -443,20 +475,6 @@
         ]
     },
     {
-        "id": "f26e3337.0b9c2",
-        "type": "function",
-        "z": "e57d8994.e26148",
-        "name": "UI_to_flow_context",
-        "func": "flow.set(\"boiler_timeout\", msg.payload);\nreturn null;",
-        "outputs": 1,
-        "noerr": 0,
-        "x": 890,
-        "y": 40,
-        "wires": [
-            []
-        ]
-    },
-    {
         "id": "999e6cfa.5dd5e",
         "type": "function",
         "z": "e57d8994.e26148",
@@ -573,22 +591,6 @@
         ]
     },
     {
-        "id": "477b79c3.008128",
-        "type": "function",
-        "z": "e57d8994.e26148",
-        "name": "build_config_msg",
-        "func": "var tout = '{\"settings\":{\"' + msg.topic + '\":' + msg.payload + '}}';\nvar tom = {topic: \"homie/boiler/$implementation/config/set\", payload: tout};\nreturn tom;",
-        "outputs": 1,
-        "noerr": 0,
-        "x": 750,
-        "y": 460,
-        "wires": [
-            [
-                "2f261e15.8c3702"
-            ]
-        ]
-    },
-    {
         "id": "67b16479.91195c",
         "type": "ui_numeric",
         "z": "e57d8994.e26148",
@@ -599,17 +601,17 @@
         "order": 5,
         "width": "3",
         "height": "1",
-        "passthru": true,
-        "topic": "temp_min_c",
+        "passthru": false,
+        "topic": "homie/boiler/boiler/temp-min-c/set",
         "format": "{{value}}",
         "min": 0,
         "max": "25",
         "step": 1,
-        "x": 560,
+        "x": 520,
         "y": 460,
         "wires": [
             [
-                "477b79c3.008128"
+                "2f261e15.8c3702"
             ]
         ]
     },
@@ -624,17 +626,17 @@
         "order": 6,
         "width": "3",
         "height": "1",
-        "passthru": true,
-        "topic": "temp_max_c",
+        "passthru": false,
+        "topic": "homie/boiler/boiler/temp-max-c/set",
         "format": "{{value}}",
         "min": "20",
         "max": "50",
         "step": 1,
-        "x": 570,
-        "y": 500,
+        "x": 730,
+        "y": 460,
         "wires": [
             [
-                "477b79c3.008128"
+                "2f261e15.8c3702"
             ]
         ]
     },
@@ -647,7 +649,7 @@
         "outputs": 1,
         "noerr": 0,
         "x": 260,
-        "y": 440,
+        "y": 480,
         "wires": [
             [
                 "fd95a9b.e25df58"
@@ -663,7 +665,7 @@
         "action": "obj",
         "pretty": false,
         "x": 110,
-        "y": 440,
+        "y": 480,
         "wires": [
             [
                 "74d20b26.e84d24"
@@ -695,7 +697,7 @@
         "outputs": 1,
         "noerr": 0,
         "x": 260,
-        "y": 380,
+        "y": 420,
         "wires": [
             [
                 "fd95a9b.e25df58"
@@ -711,7 +713,7 @@
         "action": "obj",
         "pretty": false,
         "x": 110,
-        "y": 380,
+        "y": 420,
         "wires": [
             [
                 "4235dc4d.9c0964"
@@ -758,7 +760,7 @@
         "id": "2a101ace.e25016",
         "type": "ui_group",
         "z": "",
-        "name": "Boiler",
+        "name": "Boilero",
         "tab": "531ef1f0.9a426",
         "disp": true,
         "width": "6",
@@ -768,7 +770,7 @@
         "id": "bef020ca.da9ee",
         "type": "ui_group",
         "z": "",
-        "name": "Boiler: settings",
+        "name": "Boilero: settings",
         "tab": "531ef1f0.9a426",
         "disp": true,
         "width": "6",
