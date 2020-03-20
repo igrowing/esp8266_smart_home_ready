@@ -9,6 +9,10 @@
         - [Physical UI/UX](#physical-uiux)
         - [Graphical UI/UX](#graphical-uiux)
     - [MQTT communication](#mqtt-communication)
+    - [Discussion](#discussion)
+        - [Lightweight NTP replacement over MQTT](#lightweight-ntp-replacement-over-mqtt)
+        - [ls and cat to SPIFFS over MQTT](#ls-and-cat-to-spiffs-over-mqtt)
+        - [Open questions / problems](#open-questions--problems)
 
 <!-- /TOC -->
 
@@ -39,6 +43,10 @@ Meanwhile I've build a "perfect" boiler controller and I could load Tasmota on i
   - Air temperature (used for auto-adjustment of timer).
   - (TODO) Air pressure (used for auto-adjustment of timer).
 
+Node-Red flow, the UI presented below.
+![Node-red flow](boilero_nr_flow.jpg "Boilero Node-red flow" | width=800)
+
+
 ## Human interface and operation ##
 ### Initialization
 Once the firmware is uploaded and the module is powered on, the Homie-xxxxxx AP will appear. It might take a minute or two if you use brand new ESP8266 with unwritten Flash. Homie will format the SPIFFS first.
@@ -56,6 +64,8 @@ The Boilero is controlled with 3 buttons:
 - :arrow_up_small:
 - :radio_button:
 - :arrow_down_small:
+
+![Boilero in action](boilero_phys_.jpg "Screen off - Screen on - Set time - Run boiler" | width=800)
 
 The OLED display normally is off. When it is on, 2 upper lines show context help. The bottom line shows extra status. The middle of display shows function details.
 
@@ -75,7 +85,11 @@ The Boilero is equipped with color LED.
 - When the Boilero is not connected to Wifi, the LED is flashing blue.
 
 ### Graphical UI/UX ###
-TBD
+The UI is implemented with Red-Node.
+![Main control](boilero_ui.jpg "Main user interface control")
+
+Rarely needed settings use the MQTT underneath.
+![Boilero Settings](boilero_ui_settings.jpg "Collapsible Settings UI")
 
 ## MQTT communication ##
 Service messages: topic and value examples shown.
@@ -87,18 +101,20 @@ homie/boiler/$stats/uptime 608
 
 Boilero settings and properties:
 ```
-homie/boiler/$implementation/config {"name":"Boiler","device_id":"boiler","device_stats_interval":600,"wifi":{"ssid":"XXXX"},"mqtt":{"host":"XXXX","port":1883},"ota":{"enabled":true},"settings":{"time_increment_m":10,"temp_min_c":15,"temp_max_c":25,"suspend":false}}
-
 homie/boiler/boiler/$properties 
 current,
 status,
 alert,
+time-increment-m:settable,
 factory-reset:settable,
 repeat-on-h:settable,
 repeat-on-m:settable,
 repeat-for:settable,
 heat-now-m:settable,
+temp-min-c:settable,
+temp-max-c:settable,
 time2run:settable,
+suspend:settable,
 weather:settable,
 reset:settable,
 time:settable,
@@ -125,6 +141,10 @@ homie/boiler/boiler/repeat-on-h 5                                // Settings rep
 homie/boiler/boiler/repeat-on-m 55
 homie/boiler/boiler/repeat-for 55
 homie/boiler/boiler/heat-now-m 20
+homie/boiler/boiler/time-incremrent-m 10
+homie/boiler/boiler/temp-max-c 25
+homie/boiler/boiler/temp-min-c 14
+homie/boiler/boiler/suspend false
 ...
 Periodic weather report, or tiggered by MQTT request:
 homie/boiler/boiler/weather/set true                      
@@ -146,10 +166,35 @@ homie/boiler/boiler/cat/set true                     // Request from MQTT broker
 homie/boiler/boiler/status /var_start_time_h : 5
 homie/boiler/boiler/status /var_start_time_m : 55
 homie/boiler/boiler/status /var_total_relay_time_ms : 3300000
-homie/boiler/boiler/status /homie/config.json : {"name":"Boiler","device_id":"boiler","device_stats_interval":600,"wifi":{"ssid":"XXXX","password":"XXXX"},"mqtt":{"host":"XXXX","port":1883},"ota":{"enabled":true},"settings":{"time_increment_m":10,"temp_min_c":15,"temp_max_c":25,"suspend":false}}
+homie/boiler/boiler/status /homie/config.json : {"name":"Boiler","device_id":"boiler","device_stats_interval":600,"wifi":{"ssid":"XXXX","password":"XXXX"},"mqtt":{"host":"XXXX","port":1883},"ota":{"enabled":true}}
 ...
 homie/boiler/boiler/reset/set true          // Request from MQTT broker to reset Boilero
 ...
 homie/boiler/boiler/factory-reset/set true  // Request from MQTT broker to wipe all settings in Boilero. This must be followed with initialization process
 ```
 
+## Discussion ##
+
+In this project following things might be interesting for developers:
+
+### Lightweight NTP replacement over MQTT ###
+Why:
+
+NTP works on ESP8266 with Homie. However, it takes too much resource and makes OTA getting stuck in the middle. This makes OTA impossible and impractical.
+
+How it works:
+- When Homie is connected:
+  1. Periodic time_timer started with 1 hour update. This is for case the time was not received from MQTT broker.
+  2. The 'time' topic sent to MQTT broker, requesting the epoch time. Once epoch time is received and set, the time_timer is set to update the epoch time every week. **Important** In order to process the peoch time properly, the current timezone should be added at the MQTT proker before responding to Boilero. As well the epoch time should be sent in seconds, not in milliseconds: this allows to operate it in 4 byte variable in ESP8266.
+- Every time the epoch time received, extract from epoch time the local hour and minute. Keep a diff with millis(). In loop compare the updated diff with requested hour to start the heating.
+
+Alternative solution is:
+- Add RTC. Use NTP or MQTT to get initial epoch time. Set the time to RTC. Disable the NTP. Then OTA will be OK and time will correct.
+
+I missed this choice since more HW needed.
+
+### ls and cat to SPIFFS over MQTT ###
+
+### Open questions / problems ###
+- Reading of BMP180 is bad. Standard example of different libraries are used. I stopped on Adafuit, just because its popularity: maybe other developers encountered this problem and found the solution. If so, please, share. **Sharing is caring!** The lib reads Temperature properly every time. But the pressure is read correctly only the very first time after ESP8266 boot. I thought this might be related to intereferrence with OLED display sitting on the same bus. Removing of OLED does not help. Other projects use the same OLED SSD1306 and BMP180 and report stable readings.
+- Pressure can be received from other units in the smart home which don't experience the conflict above. Other units use BME280 and BME680. Question here: what's recommended values for cloud prediction? How fast and in which ranges the pressure should change to say about cloud gathering in given area? More clouds -> less sun -> more heating needed.
