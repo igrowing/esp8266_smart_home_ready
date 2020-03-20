@@ -44,7 +44,7 @@ Meanwhile I've build a "perfect" boiler controller and I could load Tasmota on i
   - (TODO) Air pressure (used for auto-adjustment of timer).
 
 Node-Red flow, the UI presented below.
-![Node-red flow](boilero_nr_flow.jpg "Boilero Node-red flow" | width=800)
+<img src="boilero_nr_flow.jpg" width="800" alt="Boilero Node-red flow">
 
 
 ## Human interface and operation ##
@@ -65,8 +65,7 @@ The Boilero is controlled with 3 buttons:
 - :radio_button:
 - :arrow_down_small:
 
-![Boilero in action](boilero_phys_.jpg "Screen off - Screen on - Set time - Run boiler" | width=800)
-<img src="boilero_phys_.jpg" width="800">
+<img src="boilero_phys_.jpg" width="800" alt="Screen off - Screen on - Set time - Run boiler">
 
 The OLED display normally is off. When it is on, 2 upper lines show context help. The bottom line shows extra status. The middle of display shows function details.
 
@@ -87,10 +86,11 @@ The Boilero is equipped with color LED.
 
 ### Graphical UI/UX ###
 The UI is implemented with Red-Node.
-![Main control](boilero_ui.jpg "Main user interface control")
+<img src="boilero_ui.jpg" width="400" alt="Main user interface control">
+
 
 Rarely needed settings use the MQTT underneath.
-![Boilero Settings](boilero_ui_settings.jpg "Collapsible Settings UI")
+<img src="boilero_ui_settings.jpg" width="400" alt="Collapsible Settings UI">
 
 ## MQTT communication ##
 Service messages: topic and value examples shown.
