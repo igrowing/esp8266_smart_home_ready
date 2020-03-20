@@ -66,6 +66,7 @@ The Boilero is controlled with 3 buttons:
 - :arrow_down_small:
 
 ![Boilero in action](boilero_phys_.jpg "Screen off - Screen on - Set time - Run boiler" | width=800)
+<img src="boilero_phys_.jpg" width="800">
 
 The OLED display normally is off. When it is on, 2 upper lines show context help. The bottom line shows extra status. The middle of display shows function details.
 
