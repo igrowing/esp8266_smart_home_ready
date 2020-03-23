@@ -79,6 +79,10 @@ The OLED display normally is off. When it is on, 2 upper lines show context help
 - In any mode, not touching buttons in 2 minutes shuts the display off. This prolongs display service time.
 - In any boiler status change, controlled remotely or/and automatically, the display is lit for 2 minutes to show the status.
 
+This chart explains Display states and its transitions by buttons or other events:
+
+<img src="display_states.jpg" width="600">
+
 The Boilero is equipped with color LED. 
 - When the boiler is off, the LED is off.
 - When the boiler is started heating, the LED is changing its color from blue to red gradually. **Notice** The change looks like from cold to hot. However, this does not reflect real temperature of water in the boiler.
@@ -94,6 +98,12 @@ The UI is implemented with Red-Node.
 Rarely needed settings use the MQTT underneath.
 
 <img src="boilero_ui_settings.jpg" width="400" alt="Collapsible Settings UI">
+
+This chart explains the simple algorithm how 3 configurable parameters are used to calculate daily heating time:
+
+<img src="params_explained.jpg" width="600">
+
+The parameters are exposed as "Settings" in [MQTT communication](#mqtt-communication)
 
 ## MQTT communication ##
 Service messages: topic and value examples shown.
