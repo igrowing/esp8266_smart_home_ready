@@ -186,11 +186,17 @@ higher speed - higher error.  Assume constant water flow. */
 float get_liters() {
   float runtime = millis() / 1000; 
   if (runtime <= 0.0) runtime = 1.0;                            // Prevent div by 0
-  float calibrated_ticks = runtime * (float)flow_last_ticks / runtime;
+  float calibrated_ticks = (float)flow_last_ticks;
   // for hall
-  // Calibrate volume by speed: higher spped, stronger correction needed.
-  float speed_ratio = log10f(calibrated_ticks / runtime);
-  if (speed_ratio <= 1.0) speed_ratio = 1.0;       // Prevent negative values and div by 0
+  /* Recalibrate flow speed from range 1-200 to range 1.5-3.
+  In fast flow some ticks are missing. I.e. less ticks for the same volume as in slow flow.
+  So, slower flow - less correction needed.
+  */
+  float new_min = 1.5;
+  float new_max = 3.0;
+  float old_min = 1.0;    // empirical data
+  float old_max = 200.0;  // empirical data
+  float speed_ratio = (((calibrated_ticks/runtime - old_min) * (new_max - new_min)) / (old_max - old_min)) + new_min;
   float vol = calibrated_ticks/speed_ratio/ticks_denom;
 
   // for reed
@@ -604,7 +610,7 @@ void setup() {
   pinMode(PIN_FLOW, INPUT);
   attachInterrupt(PIN_FLOW, flowInterrupt, RISING);
 
-  Homie_setFirmware("shiber", "1.0.13");
+  Homie_setFirmware("shiber", "1.0.14");
 
   Homie.setSetupFunction(setupHandler).setLoopFunction(loopHandler);
   Homie.setResetTrigger(PIN_BUTTON, LOW, 10000);
