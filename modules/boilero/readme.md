@@ -103,6 +103,16 @@ This chart explains the simple algorithm how 3 configurable parameters are used 
 
 <img src="params_explained.jpg" width="600">
 
+#### Correction by air pressure change ####
+Theory: When air pressure drops significantly, this means cloudy sky and no (less) sun to heat the poiler in the day time.
+Implementation: Measure the airpressure before automatic turn on of the boiler. Apply heating time update to the result, calculated above in temperature change:
+```
+dt = old_p - new_p
+if dt < 0:
+  time -= dt  // subtract the negative adds 1 heating minute per every hPa drop
+old_p = new_p
+```
+
 The parameters are exposed as "Settings" in [MQTT communication](#mqtt-communication)
 
 ## MQTT communication ##
