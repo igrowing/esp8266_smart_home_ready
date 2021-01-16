@@ -6,7 +6,7 @@
 // has bug fixes, don't use stock lib:
 #include "../lib/Adafruit_BMP085/src/Adafruit_BMP085.h"
 
-#define FW_VER       "1.0.E" 
+#define FW_VER       "1.0.F" 
 // #define DEBUG
 
 #define PIN_BTN_CTR  0
@@ -126,7 +126,7 @@ Ticker weather_timer;                     // Manage weather sensor
 uint8_t min_temp = 100;                   // Register minimal temperature in a day, start/end by noon
 int last_temp = 25;
 int last_pres = CLEARED;
-int day_ago_pres = CLEARED;
+int day_top_pres = CLEARED;
 
 /***********************************************************************
  *                   UTILITY / SPECIFIC FUNCTIONS                      *
@@ -337,6 +337,7 @@ void read_bmp(bool is_ready) {
   if (last_temp < min_temp) min_temp = last_temp;
   reportWeather();
   weather_timer.once(WEATHER_PERIOD, read_bmp, true);
+  if (last_pres > day_top_pres) day_top_pres = last_pres;
 }
 
 void display_off() {
@@ -527,8 +528,8 @@ void setRelay(const bool on, uint32_t timeout = total_relay_time_ms) {
     current_relay_time_ms = timeout;  // Announce running time for LEDs.
     current_timer_interval = timeout / RELAY_TIME_DENOM;
     powerNode.setProperty("status").setRetained(false).send("Stop in " + String(timeout / 1000 / 60) + " minutes");
-    setTimedLedColor();               // Turn LEDs as needed + run LED timer.
-    led_timer.attach(current_timer_interval, setTimedLedColor);
+    digitalWrite(PIN_LED_BLUE, LOW);                             // Start with Blue (cold) LED
+    led_timer.attach(current_timer_interval, setTimedLedColor);  // Turn LEDs as needed + run LED timer.
     relay_timer.once(timeout / 1000, offRelay);  // Set timer for relay only: LED is treated in setRelay
   } else {
     led_timer.attach(3.0, blink_led, PIN_LED_RED);
@@ -598,13 +599,13 @@ void run_schedule() {
     if (delta_now > 0) adapted_relay_time_ms = total_relay_time_ms - delta_now * total_relay_time_ms / delta_t;
   }  
 
-  int dp = day_ago_pres - last_pres;
+  int dp = day_top_pres - last_pres;
   if (dp < 0) {
     powerNode.setProperty("status").setRetained(false).send("Adapted time:" + String(adapted_relay_time_ms / 60 / 1000) + " for delta pressure:" + String(dp) +
                                                             " resulting: " + String(adapted_relay_time_ms / 60 / 1000 - dp));
     adapted_relay_time_ms -= dp * 60 * 1000;  // Add minute of heat per each hPa of pressure drop.
   }
-  day_ago_pres = last_pres;
+  day_top_pres = last_pres;
 
 #ifdef DEBUG
   powerNode.setProperty("status").setRetained(false).send("Adapted time:" + String(adapted_relay_time_ms / 60 / 1000) + " for Min.temp:" + String(min_temp));
@@ -875,7 +876,7 @@ void setupHandler() {
   time_timer.attach(WEATHER_PERIOD, request_epoch);
   request_epoch();  // If request succeeded then time_timer will be retriggered for rare updates only.
   schedule_timer.attach(60.0, run_schedule);
-  day_ago_pres = last_pres;
+  day_top_pres = last_pres;
 }
 
 void setup() {
