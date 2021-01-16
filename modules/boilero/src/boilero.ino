@@ -6,7 +6,7 @@
 // has bug fixes, don't use stock lib:
 #include "../lib/Adafruit_BMP085/src/Adafruit_BMP085.h"
 
-#define FW_VER       "1.0.D" 
+#define FW_VER       "1.0.E" 
 // #define DEBUG
 
 #define PIN_BTN_CTR  0
@@ -25,7 +25,7 @@ typedef struct strRec {
 	char	topic[10];
 	char	msg[90];
 } Rec;
-Queue msg_q(sizeof(Rec), 7, FIFO, true); 
+cppQueue msg_q(sizeof(Rec), 7, FIFO, true); 
 
 typedef struct times {
 	uint32_t	now;
@@ -57,6 +57,17 @@ enum runReason {
 volatile bool last_relay_state = false;   // Used to display the state change when controlled not by human
 volatile bool relayState;               // Keeps actual relay status
 
+/* Switching from Homie 2.0.0 to Homie 3.0.1:
+In HomieNode constructor add node ID as 1st argument. This implies the MQTT topic:
+  Device ID from config.json (Homie 2.0.0 & 3.0.1) 
+                    |
+                    v
+MQTT topic: homie/pump/pump/relay/
+                        ^
+                        |
+  Device ID from name arg in constructor of Homie2.0.0
+        and from id arg in constructor of Homie3.0.1
+*/
 HomieNode powerNode("boiler", "switch");
 
 EasyButton button_ctr(PIN_BTN_CTR);
@@ -115,6 +126,7 @@ Ticker weather_timer;                     // Manage weather sensor
 uint8_t min_temp = 100;                   // Register minimal temperature in a day, start/end by noon
 int last_temp = 25;
 int last_pres = CLEARED;
+int day_ago_pres = CLEARED;
 
 /***********************************************************************
  *                   UTILITY / SPECIFIC FUNCTIONS                      *
@@ -586,6 +598,14 @@ void run_schedule() {
     if (delta_now > 0) adapted_relay_time_ms = total_relay_time_ms - delta_now * total_relay_time_ms / delta_t;
   }  
 
+  int dp = day_ago_pres - last_pres;
+  if (dp < 0) {
+    powerNode.setProperty("status").setRetained(false).send("Adapted time:" + String(adapted_relay_time_ms / 60 / 1000) + " for delta pressure:" + String(dp) +
+                                                            " resulting: " + String(adapted_relay_time_ms / 60 / 1000 - dp));
+    adapted_relay_time_ms -= dp * 60 * 1000;  // Add minute of heat per each hPa of pressure drop.
+  }
+  day_ago_pres = last_pres;
+
 #ifdef DEBUG
   powerNode.setProperty("status").setRetained(false).send("Adapted time:" + String(adapted_relay_time_ms / 60 / 1000) + " for Min.temp:" + String(min_temp));
 #endif  
@@ -855,6 +875,7 @@ void setupHandler() {
   time_timer.attach(WEATHER_PERIOD, request_epoch);
   request_epoch();  // If request succeeded then time_timer will be retriggered for rare updates only.
   schedule_timer.attach(60.0, run_schedule);
+  day_ago_pres = last_pres;
 }
 
 void setup() {
