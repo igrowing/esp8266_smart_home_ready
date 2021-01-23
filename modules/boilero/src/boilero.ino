@@ -6,7 +6,7 @@
 // has bug fixes, don't use stock lib:
 #include "../lib/Adafruit_BMP085/src/Adafruit_BMP085.h"
 
-#define FW_VER       "1.0.F" 
+#define FW_VER       "1.0.G" 
 // #define DEBUG
 
 #define PIN_BTN_CTR  0
@@ -600,10 +600,11 @@ void run_schedule() {
   }  
 
   int dp = day_top_pres - last_pres;
-  if (dp < 0) {
-    powerNode.setProperty("status").setRetained(false).send("Adapted time:" + String(adapted_relay_time_ms / 60 / 1000) + " for delta pressure:" + String(dp) +
-                                                            " resulting: " + String(adapted_relay_time_ms / 60 / 1000 - dp));
-    adapted_relay_time_ms -= dp * 60 * 1000;  // Add minute of heat per each hPa of pressure drop.
+  if (dp > 0) {
+    powerNode.setProperty("status").setRetained(false).send("Adapted time:" + String(adapted_relay_time_ms / 60 / 1000) + 
+                                                            " for delta pressure:" + String(dp) +
+                                                            " resulting: " + String(adapted_relay_time_ms / 60 / 1000 + dp / 2));
+    adapted_relay_time_ms += dp * 60 * 1000 / 2;  // Add half minute of heat per each hPa of pressure drop.
   }
   day_top_pres = last_pres;
 
@@ -800,7 +801,8 @@ bool timeIncrementMHandler(const HomieRange& range, const String& value) {
 void reportWeather() {
   powerNode.setProperty("weather").setRetained(false).send("{\"temperature\":" + String(last_temp) + 
     // ",\"min_temp\":" + String(min_temp) + "}");
-    ",\"min_temp\":" + String(min_temp) + ",\"pressure\":" + String(last_pres) + ",\"time\":\"" + mins2str(calc_time_now()) + "\"}");
+    ",\"min_temp\":" + String(min_temp) + ",\"max_pressure\":" + String(day_top_pres) +
+    ",\"pressure\":" + String(last_pres) + ",\"time\":\"" + mins2str(calc_time_now()) + "\"}");
 }
 
 void reportEssentials() {
