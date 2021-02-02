@@ -6,7 +6,7 @@
 // has bug fixes, don't use stock lib:
 #include "../lib/Adafruit_BMP085/src/Adafruit_BMP085.h"
 
-#define FW_VER       "1.0.G" 
+#define FW_VER       "1.0.I" 
 // #define DEBUG
 
 #define PIN_BTN_CTR  0
@@ -126,7 +126,7 @@ Ticker weather_timer;                     // Manage weather sensor
 uint8_t min_temp = 100;                   // Register minimal temperature in a day, start/end by noon
 int last_temp = 25;
 int last_pres = CLEARED;
-int day_top_pres = CLEARED;
+int day_ago_pres = CLEARED;
 
 /***********************************************************************
  *                   UTILITY / SPECIFIC FUNCTIONS                      *
@@ -259,7 +259,7 @@ void blink_led(int pin = 2) {
   digitalWrite(pin, HIGH);
 }
 
-void setTimedLedColor() {
+void set_timed_led_color() {
   uint32_t passed_ms = millis() - start_relay_time_ms;
   #define MAX_LIGHT         20
   #define OFF_LIGHT         30  
@@ -337,7 +337,7 @@ void read_bmp(bool is_ready) {
   if (last_temp < min_temp) min_temp = last_temp;
   reportWeather();
   weather_timer.once(WEATHER_PERIOD, read_bmp, true);
-  if (last_pres > day_top_pres) day_top_pres = last_pres;
+  // if (last_pres > day_top_pres) day_top_pres = last_pres;
 }
 
 void display_off() {
@@ -523,18 +523,6 @@ void setRelay(const bool on, uint32_t timeout = total_relay_time_ms) {
   powerNode.setProperty("on").setRetained(false).send(relayState ? "true" : "false");
   Homie.getLogger() << "Boiler is " << (relayState ? "on" : "off") << endl;
 
-  // Do not set timer to turn relay off if timeout == 0
-  if (timeout > 0) {
-    current_relay_time_ms = timeout;  // Announce running time for LEDs.
-    current_timer_interval = timeout / RELAY_TIME_DENOM;
-    powerNode.setProperty("status").setRetained(false).send("Stop in " + String(timeout / 1000 / 60) + " minutes");
-    digitalWrite(PIN_LED_BLUE, LOW);                             // Start with Blue (cold) LED
-    led_timer.attach(current_timer_interval, setTimedLedColor);  // Turn LEDs as needed + run LED timer.
-    relay_timer.once(timeout / 1000, offRelay);  // Set timer for relay only: LED is treated in setRelay
-  } else {
-    led_timer.attach(3.0, blink_led, PIN_LED_RED);
-  }
-
   if (relayState) {
     start_relay_time_ms = millis();
     agg_energy = UCLEARED;
@@ -548,6 +536,19 @@ void setRelay(const bool on, uint32_t timeout = total_relay_time_ms) {
     String e = String((((float)agg_energy / ((float)on_time_s/DEFAULT_CURRENT_INTERVAL_S)) * (float)on_time_s / 3600.0) / 1000.0);
     powerNode.setProperty("current").setRetained(false).send("{\"energy_kwh\":" + e + "}");
     agg_energy = UCLEARED;
+  }
+  
+    // Do not set timer to turn relay off if timeout == 0
+  if (timeout > 0) {
+    current_relay_time_ms = timeout;  // Announce running time for LEDs.
+    current_timer_interval = (float)(timeout / RELAY_TIME_DENOM);
+    powerNode.setProperty("status").setRetained(false).send("Stop in " + String(timeout / 1000 / 60) + " minutes");
+    digitalWrite(PIN_LED_BLUE, LOW);                             // Start with Blue (cold) LED
+    led_timer.attach(current_timer_interval, set_timed_led_color);  // Turn LEDs as needed + run LED timer.
+    relay_timer.attach(10.0, timed_relay_off);              // Set timer for relay only: LED is treated in setRelay
+  } else if (relayState) {
+    // Blink Red LED as reminder while boiler is on without timeout.
+    led_timer.attach(3.0, blink_led, PIN_LED_RED);
   }
 }
 
@@ -570,6 +571,17 @@ uint32_t pick_timeout(bool is_relay_already_set) {
             + ", for relay state:" + String(relayState) + " and run reason:" + String(run_reason));
 #endif
   return timeout;
+}
+
+void timed_relay_off() {
+  // Workaround for a bug in Ticker. The bug: if more than 3600 sec timeout set, the Ticker doesn't trigger the callback.
+  // The workaround: Set Ticker to check the status often and take the action based on calculation. Detach Ticker when completed.
+  uint32_t passed_ms = millis() - start_relay_time_ms;
+  if (passed_ms > current_relay_time_ms) {
+    relay_timer.detach();
+    run_reason = AUTO;
+    setRelay(false, 0);
+  };  
 }
 
 // Handle button click to the switch.
@@ -599,26 +611,22 @@ void run_schedule() {
     if (delta_now > 0) adapted_relay_time_ms = total_relay_time_ms - delta_now * total_relay_time_ms / delta_t;
   }  
 
-  int dp = day_top_pres - last_pres;
+  int dp = day_ago_pres - last_pres;
   if (dp > 0) {
     powerNode.setProperty("status").setRetained(false).send("Adapted time:" + String(adapted_relay_time_ms / 60 / 1000) + 
                                                             " for delta pressure:" + String(dp) +
-                                                            " resulting: " + String(adapted_relay_time_ms / 60 / 1000 + dp / 2));
-    adapted_relay_time_ms += dp * 60 * 1000 / 2;  // Add half minute of heat per each hPa of pressure drop.
+                                                            " resulting: " + String(adapted_relay_time_ms / 60 / 1000 + dp / 4));
+    adapted_relay_time_ms += dp * 60 * 1000 / 4;  // Add 1 minute of heat per 4 hPa of pressure drop.
   }
-  day_top_pres = last_pres;
+  day_ago_pres = last_pres;
 
 #ifdef DEBUG
   powerNode.setProperty("status").setRetained(false).send("Adapted time:" + String(adapted_relay_time_ms / 60 / 1000) + " for Min.temp:" + String(min_temp));
 #endif  
-  setRelay(true, adapted_relay_time_ms);
   run_reason = AUTO;
+  setRelay(true, adapted_relay_time_ms);
 }
 
-// Special workaround for calling from Ticker
-void offRelay() {
-  setRelay(false, 0);
-}
 
 /***********************************************************************
  *                     MQTT RELATED FUNCTIONS                          *
@@ -627,15 +635,15 @@ void offRelay() {
 // Handle incoming MQTT message /homie/boiler/boiler/on/set <- true/false/toggle
 bool relayOnHandler(const HomieRange& range, const String& value) {
   if (value == "toggle") {
-    toggleRelay();
     run_reason = REMOTE;
+    toggleRelay();
     return true;
   }
 
   if (value != "true" && value != "false") return false;
   // bug: boilero uses internal timer setting when turned from network.
-  setRelay((value == "true"), remote_relay_time_ms);
   run_reason = REMOTE;
+  setRelay((value == "true"), remote_relay_time_ms);
   return true;
 }
 
@@ -801,7 +809,7 @@ bool timeIncrementMHandler(const HomieRange& range, const String& value) {
 void reportWeather() {
   powerNode.setProperty("weather").setRetained(false).send("{\"temperature\":" + String(last_temp) + 
     // ",\"min_temp\":" + String(min_temp) + "}");
-    ",\"min_temp\":" + String(min_temp) + ",\"max_pressure\":" + String(day_top_pres) +
+    ",\"min_temp\":" + String(min_temp) + ",\"max_pressure\":" + String(day_ago_pres) +
     ",\"pressure\":" + String(last_pres) + ",\"time\":\"" + mins2str(calc_time_now()) + "\"}");
 }
 
@@ -878,7 +886,7 @@ void setupHandler() {
   time_timer.attach(WEATHER_PERIOD, request_epoch);
   request_epoch();  // If request succeeded then time_timer will be retriggered for rare updates only.
   schedule_timer.attach(60.0, run_schedule);
-  day_top_pres = last_pres;
+  day_ago_pres = last_pres;
 }
 
 void setup() {
