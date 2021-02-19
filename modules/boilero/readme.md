@@ -38,7 +38,7 @@ Meanwhile I've build a "perfect" boiler controller and I could load Tasmota on i
   - Energy consumption reported every end of boiler run time.
   - Alert about power consumption when relay should be off and there is current: contact slip, hardware problem.
   - Air temperature (used for auto-adjustment of timer).
-  - (TODO) Air pressure (used for auto-adjustment of timer).
+  - Air pressure (used for auto-adjustment of timer).
 
 Node-Red flow, the UI presented below.
 
