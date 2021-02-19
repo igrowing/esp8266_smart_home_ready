@@ -1,20 +1,17 @@
 # Boilero: another yet "perfect" boiler controller #
-<!-- TOC -->
-
 - [Boilero: another yet "perfect" boiler controller](#boilero-another-yet-perfect-boiler-controller)
-    - [Story](#story)
-    - [Features](#features)
-    - [Human interface and operation](#human-interface-and-operation)
-        - [Initialization](#initialization)
-        - [Physical UI/UX](#physical-uiux)
-        - [Graphical UI/UX](#graphical-uiux)
-    - [MQTT communication](#mqtt-communication)
-    - [Discussion](#discussion)
-        - [Lightweight NTP replacement over MQTT](#lightweight-ntp-replacement-over-mqtt)
-        - [ls and cat to SPIFFS over MQTT](#ls-and-cat-to-spiffs-over-mqtt)
-        - [Open questions / problems](#open-questions--problems)
+  - [Story](#story)
+  - [Features](#features)
+  - [Human interface and operation](#human-interface-and-operation)
+    - [Initialization](#initialization)
+    - [Physical UI/UX](#physical-uiux)
+    - [Graphical UI/UX](#graphical-uiux)
+  - [MQTT communication](#mqtt-communication)
+  - [Discussion](#discussion)
+    - [Lightweight NTP replacement over MQTT](#lightweight-ntp-replacement-over-mqtt)
+    - [ls and cat to SPIFFS over MQTT](#ls-and-cat-to-spiffs-over-mqtt)
+    - [Open questions / problems](#open-questions--problems)
 
-<!-- /TOC -->
 
 ## Story ##
 My old good mechanical timer for boiler passed away recently. I repaired it about month ago... and this time it's dead completely. 
@@ -102,16 +99,6 @@ Rarely needed settings use the MQTT underneath.
 This chart explains the simple algorithm how 3 configurable parameters are used to calculate daily heating time:
 
 <img src="params_explained.jpg" width="600">
-
-#### Correction by air pressure change ####
-Theory: When air pressure drops significantly, this means cloudy sky and no (less) sun to heat the poiler in the day time.
-Implementation: Measure the airpressure before automatic turn on of the boiler. Apply heating time update to the result, calculated above in temperature change:
-```
-dt = old_p - new_p
-if dt < 0:
-  time -= dt  // subtract the negative adds 1 heating minute per every hPa drop
-old_p = new_p
-```
 
 The parameters are exposed as "Settings" in [MQTT communication](#mqtt-communication)
 
