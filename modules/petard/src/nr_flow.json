@@ -1,0 +1,476 @@
+[
+    {
+        "id": "f427da24.a5c238",
+        "type": "debug",
+        "z": "e57d8994.e26148",
+        "name": "",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "true",
+        "x": 230,
+        "y": 900,
+        "wires": []
+    },
+    {
+        "id": "7b2ea470.766d3c",
+        "type": "comment",
+        "z": "e57d8994.e26148",
+        "name": "========  Petard  ========",
+        "info": "",
+        "x": 520,
+        "y": 640,
+        "wires": []
+    },
+    {
+        "id": "abc4ed21.ea298",
+        "type": "ui_gauge",
+        "z": "e57d8994.e26148",
+        "name": "",
+        "group": "8608f8cf.9dd2c8",
+        "order": 1,
+        "width": "3",
+        "height": "2",
+        "gtype": "wave",
+        "title": "Water",
+        "label": "L",
+        "format": "{{value}}",
+        "min": 0,
+        "max": "2.1",
+        "colors": [
+            "#00b500",
+            "#e6e600",
+            "#ca3838"
+        ],
+        "seg1": "",
+        "seg2": "",
+        "x": 877.0000076293945,
+        "y": 867.0000839233398,
+        "wires": []
+    },
+    {
+        "id": "e97dd25.01d453",
+        "type": "ui_gauge",
+        "z": "e57d8994.e26148",
+        "name": "",
+        "group": "8608f8cf.9dd2c8",
+        "order": 2,
+        "width": "3",
+        "height": "3",
+        "gtype": "donut",
+        "title": "Filter remains",
+        "label": "L",
+        "format": "{{value}}",
+        "min": 0,
+        "max": "300",
+        "colors": [
+            "#ca3838",
+            "#e6e600",
+            "#00b500"
+        ],
+        "seg1": "10",
+        "seg2": "50",
+        "x": 847.0000076293945,
+        "y": 827.0000839233398,
+        "wires": []
+    },
+    {
+        "id": "870d31f0.da533",
+        "type": "ui_chart",
+        "z": "e57d8994.e26148",
+        "name": "",
+        "group": "8608f8cf.9dd2c8",
+        "order": 4,
+        "width": "6",
+        "height": "4",
+        "label": "Log",
+        "chartType": "line",
+        "legend": "true",
+        "xformat": "dd HH:mm",
+        "interpolate": "step",
+        "nodata": "No data",
+        "dot": false,
+        "ymin": "",
+        "ymax": "",
+        "removeOlder": "2",
+        "removeOlderPoints": "",
+        "removeOlderUnit": "86400",
+        "cutout": 0,
+        "useOneColor": false,
+        "colors": [
+            "#1f77b4",
+            "#aec7e8",
+            "#ff7f0e",
+            "#2ca02c",
+            "#98df8a",
+            "#d62728",
+            "#ff9896",
+            "#9467bd",
+            "#c5b0d5"
+        ],
+        "useOldStyle": false,
+        "outputs": 1,
+        "x": 830,
+        "y": 740,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "a7e7e92a.f24ea8",
+        "type": "mqtt in",
+        "z": "e57d8994.e26148",
+        "name": "petard",
+        "topic": "homie/petard/#",
+        "qos": "2",
+        "broker": "2bd2afca.e962e",
+        "x": 137.00000762939453,
+        "y": 767.0000839233398,
+        "wires": [
+            [
+                "7bda3d2a.223734"
+            ]
+        ]
+    },
+    {
+        "id": "7bda3d2a.223734",
+        "type": "switch",
+        "z": "e57d8994.e26148",
+        "name": "",
+        "property": "topic",
+        "propertyType": "msg",
+        "rules": [
+            {
+                "t": "regex",
+                "v": "pump$",
+                "vt": "str",
+                "case": true
+            },
+            {
+                "t": "cont",
+                "v": "stats/signal",
+                "vt": "str"
+            },
+            {
+                "t": "regex",
+                "v": "\\$state$",
+                "vt": "str",
+                "case": false
+            },
+            {
+                "t": "regex",
+                "v": "alert$",
+                "vt": "str",
+                "case": false
+            },
+            {
+                "t": "regex",
+                "v": "pf1/status$",
+                "vt": "str",
+                "case": false
+            },
+            {
+                "t": "regex",
+                "v": "sensitivity$",
+                "vt": "str",
+                "case": false
+            },
+            {
+                "t": "regex",
+                "v": "filter-service-l$",
+                "vt": "str",
+                "case": false
+            }
+        ],
+        "checkall": "false",
+        "repair": false,
+        "outputs": 7,
+        "x": 277.00000762939453,
+        "y": 767.0000839233398,
+        "wires": [
+            [
+                "dc6f4e69.f9f16",
+                "8a6dc8c3.6defe8"
+            ],
+            [
+                "801d7883.47b3e8"
+            ],
+            [
+                "3a4ac791.d94388"
+            ],
+            [
+                "3a4ac791.d94388"
+            ],
+            [
+                "3a4ac791.d94388",
+                "914fd517.8c6cb8"
+            ],
+            [],
+            [
+                "98d3e454.0144b8"
+            ]
+        ]
+    },
+    {
+        "id": "8a6dc8c3.6defe8",
+        "type": "function",
+        "z": "e57d8994.e26148",
+        "name": "json2influx_obj",
+        "func": "var obj = {};\nobj.pump=(msg.payload === \"1\")?1:0;\nmsg.payload = obj;\nmsg.topic = \"\";\nnode.status({text: JSON.stringify(obj)});\nreturn msg;\n",
+        "outputs": 1,
+        "noerr": 0,
+        "x": 440,
+        "y": 980,
+        "wires": [
+            [
+                "169310d8.5d812f"
+            ]
+        ]
+    },
+    {
+        "id": "dc6f4e69.f9f16",
+        "type": "function",
+        "z": "e57d8994.e26148",
+        "name": "msg2digit",
+        "func": "var old = msg.payload;\nnode.status({text: msg.topic + ':???:' +old});\nif (msg.payload === null) return;\n\nif (msg.payload === true || \n    msg.payload.toLowerCase() == 'open' || \n    msg.payload.toLowerCase() == 'on' ||\n    msg.payload.toLowerCase() == 'true' ||\n    parseInt(msg.payload) > 0) { msg.payload = 50 }\nelse if (msg.payload === false || \n    msg.payload.toLowerCase() == 'close' || \n    msg.payload.toLowerCase() == 'off' ||\n    msg.payload.toLowerCase() == 'false' ||\n    parseInt(msg.payload) <= 0) { msg.payload = 0 }\n    else return;\n\nnode.status({text: old + \">>\" + msg.payload});\n\ntry{\n    // Get 1st word from the end of topic\n    msg.topic = msg.topic.split('/').slice(-1)[0];\n} catch (er) {\n    node.status({text: 'Topic error'});\n    return null;\n}\nnode.status({text: '>>' + old + \",\" + msg.payload});\n\nreturn msg;",
+        "outputs": 1,
+        "noerr": 0,
+        "x": 480,
+        "y": 700,
+        "wires": [
+            [
+                "870d31f0.da533"
+            ]
+        ]
+    },
+    {
+        "id": "3a4ac791.d94388",
+        "type": "function",
+        "z": "e57d8994.e26148",
+        "name": "msg2led",
+        "func": "/*\n&#128064;\n    &#128721;\n    &#128561;\n    &#9989;\n*/\nvar led = 0; // gray\nnode.status({text: msg.topic + ':' + msg.payload});\nif (msg.topic === 'homie/petard/$state') {\n    if (msg.payload === 'ready') led = 3;  // green \n    else  led = 1; // red\n}\n\nif (msg.topic === 'homie/petard/pf1/alert') led = 2; // yellow\nif (msg.topic === 'homie/petard/pf1/status') led = 3; // green\nmsg.payload = led;\nmsg.topic = '';\nreturn msg;",
+        "outputs": 1,
+        "noerr": 0,
+        "x": 480,
+        "y": 800,
+        "wires": [
+            [
+                "a6e81f82.c2c61"
+            ]
+        ]
+    },
+    {
+        "id": "914fd517.8c6cb8",
+        "type": "json",
+        "z": "e57d8994.e26148",
+        "name": "",
+        "property": "payload",
+        "action": "obj",
+        "pretty": false,
+        "x": 450,
+        "y": 860,
+        "wires": [
+            [
+                "57973dd8.0cf664"
+            ]
+        ]
+    },
+    {
+        "id": "57973dd8.0cf664",
+        "type": "function",
+        "z": "e57d8994.e26148",
+        "name": "json2gauges",
+        "func": "/* {\n  filtered_l: x,\n  remaining_filter_service_l: x,\n  water_level_l: x,\n  water_level_t: x,\n  replace_filter_every_l: x,\n}\n*/\n\ntry {\n    node.status({text: JSON.stringify(msg.payload)});\n    var msg3 = {payload: {level: msg.payload.water_level_l, \n                filtered: msg.payload.filtered_l,\n                remains: msg.payload.remaining_filter_service_l\n                },\n                topic: \"\"\n    };    \n    return [\n        {topic: \"water\", payload: parseFloat(msg.payload.water_level_l)*100},\n        {payload: msg.payload.remaining_filter_service_l}, \n        {payload: msg.payload.water_level_l},\n        msg3\n        ];\n} catch (e) {}\n\n",
+        "outputs": 4,
+        "noerr": 0,
+        "x": 637.0000076293945,
+        "y": 847.0000839233398,
+        "wires": [
+            [
+                "870d31f0.da533"
+            ],
+            [
+                "e97dd25.01d453"
+            ],
+            [
+                "abc4ed21.ea298"
+            ],
+            [
+                "169310d8.5d812f"
+            ]
+        ]
+    },
+    {
+        "id": "a6e81f82.c2c61",
+        "type": "ui_template",
+        "z": "e57d8994.e26148",
+        "group": "8608f8cf.9dd2c8",
+        "name": "Led",
+        "order": 3,
+        "width": "2",
+        "height": "1",
+        "format": "<div layout=\"row\" layout-align=\"space-between\">\n    <h4>Status: </h4>\n   {{((msg.payload === 0) ? '&#128064;' : \n   ((msg.payload === 1) ? '&#128721;' : \n   ((msg.payload === 2) ? '&#128561;' : '&#9989;')))}}\n</div>",
+        "storeOutMessages": true,
+        "fwdInMessages": true,
+        "templateScope": "local",
+        "x": 650,
+        "y": 780,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "c86eac61.ed292",
+        "type": "catch",
+        "z": "e57d8994.e26148",
+        "name": "",
+        "scope": null,
+        "x": 100,
+        "y": 900,
+        "wires": [
+            [
+                "f427da24.a5c238"
+            ]
+        ]
+    },
+    {
+        "id": "801d7883.47b3e8",
+        "type": "function",
+        "z": "e57d8994.e26148",
+        "name": "last_word",
+        "func": "try{\n    // Get 1st word from the end of topic\n    msg.topic = msg.topic.split('/').slice(-1)[0];\n} catch (er) {\n    node.status({text: 'Topic error'});\n    return null;\n}\nnode.status({text: '>>' + msg.topic + \":\" + msg.payload});\n\nreturn msg;",
+        "outputs": 1,
+        "noerr": 0,
+        "x": 480,
+        "y": 760,
+        "wires": [
+            [
+                "870d31f0.da533"
+            ]
+        ]
+    },
+    {
+        "id": "169310d8.5d812f",
+        "type": "influxdb out",
+        "z": "e57d8994.e26148",
+        "influxdb": "7270567d.341408",
+        "name": "",
+        "measurement": "petard",
+        "precision": "s",
+        "retentionPolicy": "",
+        "x": 880,
+        "y": 980,
+        "wires": []
+    },
+    {
+        "id": "98d3e454.0144b8",
+        "type": "ui_numeric",
+        "z": "e57d8994.e26148",
+        "name": "",
+        "label": "Replace filter every, L",
+        "tooltip": "Set filter service volume for replacement alert",
+        "group": "8608f8cf.9dd2c8",
+        "order": 4,
+        "width": 0,
+        "height": 0,
+        "passthru": false,
+        "topic": "homie/petard/pf1/filter-service-l/set",
+        "format": "{{value}}",
+        "min": "50",
+        "max": "500",
+        "step": "10",
+        "x": 500,
+        "y": 920,
+        "wires": [
+            [
+                "9ed1c1c7.a709e"
+            ]
+        ]
+    },
+    {
+        "id": "9ed1c1c7.a709e",
+        "type": "trigger",
+        "z": "e57d8994.e26148",
+        "op1": "",
+        "op2": "",
+        "op1type": "nul",
+        "op2type": "payl",
+        "duration": "10",
+        "extend": true,
+        "units": "s",
+        "reset": "",
+        "bytopic": "all",
+        "name": "delay10sec",
+        "x": 722,
+        "y": 914,
+        "wires": [
+            [
+                "7562cfca.75a58"
+            ]
+        ]
+    },
+    {
+        "id": "7562cfca.75a58",
+        "type": "mqtt out",
+        "z": "e57d8994.e26148",
+        "name": "",
+        "topic": "",
+        "qos": "",
+        "retain": "",
+        "broker": "2bd2afca.e962e",
+        "x": 920,
+        "y": 920,
+        "wires": []
+    },
+    {
+        "id": "8608f8cf.9dd2c8",
+        "type": "ui_group",
+        "z": "",
+        "name": "Petard",
+        "tab": "531ef1f0.9a426",
+        "order": 7,
+        "disp": true,
+        "width": "6",
+        "collapse": false
+    },
+    {
+        "id": "2bd2afca.e962e",
+        "type": "mqtt-broker",
+        "z": "",
+        "name": "",
+        "broker": "localhost",
+        "port": "1883",
+        "clientid": "",
+        "usetls": false,
+        "compatmode": true,
+        "keepalive": "60",
+        "cleansession": true,
+        "birthTopic": "",
+        "birthQos": "0",
+        "birthPayload": "",
+        "willTopic": "",
+        "willQos": "0",
+        "willPayload": ""
+    },
+    {
+        "id": "7270567d.341408",
+        "type": "influxdb",
+        "z": "",
+        "hostname": "127.0.0.1",
+        "port": "8086",
+        "protocol": "http",
+        "database": "shim",
+        "name": "",
+        "usetls": false,
+        "tls": ""
+    },
+    {
+        "id": "531ef1f0.9a426",
+        "type": "ui_tab",
+        "z": "",
+        "name": "MyHome",
+        "icon": "home",
+        "order": 1
+    }
+]
