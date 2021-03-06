@@ -3,7 +3,7 @@
 #include <cppQueue.h>
 #include <EasyButton.h>
 
-#define FW_VER       "1.0.0" 
+#define FW_VER       "1.0.1" 
 // #define DEBUG
 
 #define LED_COUNT    1
@@ -63,7 +63,7 @@ uint16_t sensitivity = 32;  // Multiplier above regular distance detection level
 
 uint16_t replace_filter_every_l = 250;   // Read/write to EEPROM
 uint32_t pump_start_ms = UCLEARED;       // Register when pump started.
-uint8_t current_reed_mark = 1;  // 1..7. 255 is error
+uint8_t prev_level_decoded = 1;  // 1..7. 255 is error
 uint32_t filtered_ml = UCLEARED;
 
 uint_fast8_t brightness = 20;       // 0..255  ?
@@ -83,7 +83,6 @@ Reed # |     Decoded
 */
 std::map<uint8_t,uint8_t> level_map = {{1,1}, {3,2}, {7,2}, {2,3}, {6,4}, {14,4}, {4,5}, {12,6}, {8,7}};
 std::map<uint8_t,uint8_t>::iterator it;
-uint8_t prev_level = 0;
 bool is_level_changed = false;
 bool is_alert_allowed = true;        // Shoot only 1 alert until acknowledge by button
 uint8_t is_filter_new = 1;           // Avoid reporting "Replace filter" when filter just replaced and (total_liters % liters_to_replace) is still 0. Keep in EEPROM.
@@ -200,11 +199,7 @@ String f2str(float_t in, int16_t precision) {
 }
 
 uint16_t getDistanceThreshold() {
-  // TODO: cleanup
-  // return (ir_avg + sensitivity);
   return (ir_avg < 100)?600:(int)(sqrt(ir_avg) * (float)sensitivity);
-  // return (ir_avg < 100)?600:(int)(sqrt(sqrt(ir_avg)) * 180.0);
-  // return (ir_avg < 100)?600:(int)(0.9 * pow(ir_avg - 100, 2) / ((double)ir_avg * 1.7) + 600);
 }
 
 
@@ -255,20 +250,26 @@ void pumpOff() {
   reportStatus();
 }
 
-// Use for accept filter replacement
-void onLongPressBtn() {
-  leds[0] = CRGB::WhiteSmoke;
-  LEDS.show(); 
-  is_alert_allowed = true;
-  led_timer.once(3.0, measureWaterLevel);
-
+bool resetFilter() {
+    // Protect filter reset counter in occasional long button press.
   if (is_filter_new == 0) {
     is_filter_new = 1;
     storeVariable("is_filter_new", is_filter_new);
     filtered_ml = 0;
     writeFilteredML();
     petard_node.setProperty("status").setRetained(false).send("Filter replacement accepted");
+    return true;
   }
+  return false;
+}
+
+// Use for accept filter replacement
+void onLongPressBtn() {
+  leds[0] = CRGB::WhiteSmoke;
+  LEDS.show(); 
+  is_alert_allowed = true;
+  led_timer.once(3.0, measureWaterLevel);
+  resetFilter();
 }
 
 void onPressBtn() {
@@ -284,74 +285,61 @@ void onPressBtn() {
 ICACHE_RAM_ATTR void measureWaterLevel() {
   // Stop blinking if water level changed.
   if (level_timer.active()) level_timer.detach();
-  uint8_t level = !digitalRead(PIN_REED_1);
-  level += !digitalRead(PIN_REED_2) << 1;
-  level += !digitalRead(PIN_REED_3) << 2;
-  level += !digitalRead(PIN_REED_4) << 3;
+  uint8_t level_raw = !digitalRead(PIN_REED_1);
+  level_raw += !digitalRead(PIN_REED_2) << 1;
+  level_raw += !digitalRead(PIN_REED_3) << 2;
+  level_raw += !digitalRead(PIN_REED_4) << 3;
 
-  // Compare given level with current_reed_mark and prev_level.
-  if (level == prev_level) {
-      is_level_changed = false;
-  } else {
-    uint8_t mark_proposal = 255;
-    it = level_map.find(level);
-    if (it != level_map.end()) mark_proposal = it->second;
-    else {
-      singleAlertUntilBtnAck("Unknown reed switch reading");
-      level_timer.once_ms(500, blinkRedLed, true);
-    }
+  uint8_t level_decoded = 255;
+  it = level_map.find(level_raw);
+  if (it != level_map.end()) level_decoded = it->second;
+  else {
+    singleAlertUntilBtnAck("Unknown reed switch reading");
+    level_timer.once_ms(500, blinkRedLed, true);
+  }
 
-    // Level changed => update global variable.
-    is_level_changed = true;
-  #ifdef DEBUG
-    petard_node.setProperty("status").setRetained(false).send("prev_level:" + String(prev_level) + 
-    ", level:" + String(level) +
-    " -> res:" + String(mark_proposal) +
-    ", is_level_changed:" + String(is_level_changed));  
-  #endif
+  // Level changed => update global variable.
+  is_level_changed = (level_decoded != prev_level_decoded);
+  if (is_level_changed) reportStatus();
 
-    switch (mark_proposal)
-    {
-    case 1:
-      leds[0] = CRGB::Red;
-      singleAlertUntilLevelChange("Add water now");
-      break;
-    
-    case 2:
-      leds[0] = CRGB::Orange;
-      // Alert only when water goes down
-      if ((mark_proposal < current_reed_mark) && (current_reed_mark != 3)) singleAlertUntilLevelChange("Add water soon");
-      break;
+  switch (level_decoded)
+  {
+  case 1:
+    leds[0] = CRGB::Red;
+    singleAlertUntilLevelChange("Add water now");
+    break;
+  
+  case 2:
+    leds[0] = CRGB::Orange;
+    // Alert only when water goes down
+    if ((level_decoded < prev_level_decoded) && (prev_level_decoded != 3)) singleAlertUntilLevelChange("Add water soon");
+    break;
 
-    case 3:
-      leds[0] = CRGB::Yellow;
-      // Alert only when water goes down
-      if (mark_proposal < current_reed_mark) singleAlertUntilLevelChange("Add water soon");
-      break;
-    
-    case 4:
-      leds[0] = CRGB::Green;
-      break;
+  case 3:
+    leds[0] = CRGB::Yellow;
+    // Alert only when water goes down
+    if (level_decoded < prev_level_decoded) singleAlertUntilLevelChange("Add water soon");
+    break;
+  
+  case 4:
+    leds[0] = CRGB::Green;
+    break;
 
-    case 5:
-      leds[0] = CRGB::Turquoise;
-      break;
-    
-    case 6:
-    case 7:
-      leds[0] = CRGB::Blue;
-      break;
-    
-    default:
-      return;
-      break;
-    } 
-
-    // Update prev_level if changed.
-    if (is_level_changed) prev_level = level;
-    current_reed_mark = mark_proposal; 
-    LEDS.show(); 
-    }
+  case 5:
+    leds[0] = CRGB::Turquoise;
+    break;
+  
+  case 6:
+  case 7:
+    leds[0] = CRGB::Blue;
+    break;
+  
+  default:
+    return;  // Treat this in blinkLed function.
+    break;
+  } 
+  prev_level_decoded = level_decoded; 
+  LEDS.show(); 
 }
 
 void unlockWaterReportLock() {
@@ -405,10 +393,10 @@ void drive_ir() {
     // Check if water level changing.
     // If changing in short time, don't shoot "Thirsty" alert and postpone next IR reading by 20 sec.
     // If no water even after 20 sec of delay, send “Pet wants water”. Return.
-    if ((current_reed_mark > 1) && (water_report_lock_timer.active())) {
+    if ((prev_level_decoded > 1) && (water_report_lock_timer.active())) {
       unlockWaterReportLock();
     }
-    if (current_reed_mark == 1) {
+    if (prev_level_decoded == 1) {
       if (!water_report_lock_timer.active()) {
         water_report_lock_timer.once(20.0, reportPetThirsty);
       }
@@ -475,7 +463,6 @@ void reportFilteredWater() {
 }
 
 void reportStatus() {
-  // Report how many liters are remaining to replace the filter
   /* {
       filtered_l: x,
       remaining_filter_service_l: x,
@@ -491,8 +478,8 @@ void reportStatus() {
   petard_node.setProperty("status").setRetained(false).send(
     "{\"filtered_l\":" + String(filtered_ml / 1000) + 
     ",\"remaining_filter_service_l\":" + String(replace_filter_every_l - filtered_ml / 1000) + 
-    ",\"water_level_l\":" + f2str((float)(current_reed_mark) * MARK_L_COEFF / 1000.0, 1) + 
-    ",\"water_level_t\":" + String(current_reed_mark) + 
+    ",\"water_level_l\":" + f2str((float)(prev_level_decoded) * MARK_L_COEFF / 1000.0, 1) + 
+    ",\"water_level_t\":" + String(prev_level_decoded) + 
     ",\"replace_filter_every_l\":" + String(replace_filter_every_l) + 
     ",\"ir_avg\":" + String(ir_avg) + 
     ",\"distanceThreshold\":" + String(getDistanceThreshold()) + 
@@ -503,6 +490,14 @@ void reportStatus() {
 bool litersToReplaceHandler(const HomieRange& range, const String& value) { 
   reportStatus();
   return true;
+}
+
+// homie/petard/pf1/filter-reset/set true - reset filter counter to MQTT
+bool filterResetHandler(const HomieRange& range, const String& value) {
+  if (value != "true") return false;
+  resetFilter();
+  reportStatus();
+  return true; 
 }
 
 // homie/petard/pf1/filter-service-l/set Liters. How much refilled water can the filter treat.
@@ -523,7 +518,7 @@ void singleAlertUntilBtnAck(String msg) {
 }
 
 void singleAlertUntilLevelChange(String msg) {
-  // Reportto fill the water
+  // Report to fill the water
   if (is_level_changed) {
     petard_node.setProperty("alert").setRetained(false).send(msg);
   }
@@ -555,10 +550,10 @@ bool irHandler(const HomieRange& range, const String& value) {
   return true;
 }
 
-// homie/petard/pf1/remove/set file_name
+// homie/petard/pf1/rm/set file_name
 bool removeHandler(const HomieRange& range, const String& value) {
   String res = (SPIFFS.remove(value))?"":" not";
-  petard_node.setProperty("remove").setRetained(false).send("File " + value + " was" + res + " removed");
+  petard_node.setProperty("rm").setRetained(false).send("File " + value + " was" + res + " removed");
 }
 
 // // homie/petard/pf1/debug/set true/false/toggle
@@ -612,15 +607,15 @@ void setupHandler() {
  * 
  * On boot read from EEPROM:
  *    - filter_service_l
- *    - consumed_l
+ *    - filtered_ml
  *    - last_kept_reed_mark
  * In loop:
- *  - Read current_reed_mark
- *  - Set LED color by current_reed_mark
- *  - If current_reed_mark > last_kept_reed_mark then start fill_timer. Update the added amount of water after the progress stops. Write to EEPROM + report ???
- *  - If current_reed_mark < last_kept_reed_mark then EEPROM + report
- *  - If consumed_l > filter_service_l then send alert once
- *  - If current_reed_mark == Low then send alert once
+ *  - Read prev_level_decoded
+ *  - Set LED color by prev_level_decoded
+ *  - If prev_level_decoded > last_kept_reed_mark then start fill_timer. Update the added amount of water after the progress stops. Write to EEPROM + report ???
+ *  - If prev_level_decoded < last_kept_reed_mark then EEPROM + report
+ *  - If filtered_ml/1000 > filter_service_l then send alert once
+ *  - If prev_level_decoded == Low then send alert once
  **********************************************************************/
 void setup() {
   // SPIFFS.begin();  // Call SPIFFS before Homie awake: the state required ASAP.
@@ -662,13 +657,13 @@ void setup() {
   petard_node.advertise("reset").settable(resetHandler);
   petard_node.advertise("cat").settable(catHandler);
   petard_node.advertise("ls").settable(lsHandler);
-  petard_node.advertise("remove").settable(removeHandler);
+  petard_node.advertise("rm").settable(removeHandler);
   petard_node.advertise("sensitivity").settable(sensitivityHandler);
   petard_node.advertise("pump").settable(pumpHandler);
   petard_node.advertise("read-ir").settable(irHandler);
   petard_node.advertise("alert");
   petard_node.advertise("filter-service-l").settable(filterServiceLHandler);  // Set the filter service time.
-  // petard_node.advertise("debug").settable(debugHandler);  // TODO: delete this.
+  petard_node.advertise("filter-reset").settable(filterResetHandler); 
   
   Homie.setSetupFunction(setupHandler).setLoopFunction(loopHandler);
   Homie.setup();
