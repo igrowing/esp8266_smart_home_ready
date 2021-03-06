@@ -1,4 +1,8 @@
 # Petard: another yet "perfect" pet fountain #
+
+<img src="pics/petard_full_logo.jpg" width="600" alt="Petard">
+
+Table of contents:
 - [Petard: another yet "perfect" pet fountain](#petard-another-yet-perfect-pet-fountain)
   - [Story](#story)
   - [Features](#features)
@@ -14,14 +18,12 @@
     - [Open issues](#open-issues)
 
 
-<img src="pics/petard_full_logo.jpg" width="800" alt="Petard">
-
 ## Story ##
-Keeping water bowl clean and full with fresh water is a hassle for busy people.
-When water is not fresh pet drinks less and feels worse.
+Keeping pet's water bowl clean and full with fresh water is a hassle for busy people.
+When water is not fresh the pet drinks less and feels worse.
 When the water gone and the owner missed that the pet gets in trouble.
 To avoid those situation the industry produces large variety of mechanical and electronic pet fountains.
-Running water attracts pets so they drink more.
+Running water attracts pets, therefore they drink more.
 And the most of such fountains have built in filter, so the water is always fresh.
 After long market search I found [a pet fountain with the best features](https://www.amazon.com/WellToBe-Fountain-Infrared-Dispenser-Automatic/dp/B089Y8143T/ref=sr_1_3):
 - Battery backup;
@@ -43,7 +45,7 @@ The list below shows problems in the original pet fountain and how it was solved
 - **Problem:** The original pet fountain was stuck every 2-3 days, displaying teal light on its LED, not reacting to the pet, and not giving the water. Manual power cycle exited the logic inside the fountain from the stuck mode. This is really annoying and possibly not repairable without fix in the fountain firmware. However, the firmware update is not possible too for all models in the market today, including this fountain.
   - **Solution:** The microcontroller of the pet fountain was replaced with ESP8266. Dedicated firmware was written. Now the ESP8266 controls the pet and water level detection, pump work, reports and alerts. As well, the Web-UI added using Node-RED to see what's going on remotely and neatly, not for geeks ;-)
 - **Problem:** Filter of the fountain required to be replaced every 2 weeks. Replacement by time makes no sense. Replacement by amount of filtered water does. However, it's another hassle to remember when to replace the filter.
-  - **Solution:** Configure filter service time in Liters. When the pet fountain pumped through the filter enough water, it sends to the pet owner request of filter replacement.
+  - **Solution:** Configure filter service life in Liters. When the pet fountain pumped through the filter enough water, it sends to the pet owner request of filter replacement.
 - **Problem:** When water is gone red LED is lit on the fountain. If owner misses the indication, pet goes thirsty.
   - **Solution:** Measure water level and display it on the LED with rainbow colors from Blue (full) to Red (empty). Send preliminary alert to the pet owner about a day before water ends. Send assertive alert to the pet owner when water is gone.
 - **Problem:** When you fill the container, the water level isn't seen. So you must either open it or add less water than possible. Spill of water isn't option because it goes straight to the electronics...
@@ -88,7 +90,7 @@ When filling water, notice the LED color. When it becomes blue stop water fillin
 ### Graphical UI/UX ###
 The Web-UI:
 
-<img src="pics/petard_ui.jpg" width="800" alt="Petard Web-UI">
+<img src="pics/petard_ui.jpg" alt="Petard Web-UI">
 
 The "Status" sign shows overall Petard status:
 - Green - normal function.
@@ -162,13 +164,13 @@ homie/petard/pf1/factory-reset/set true    // Request from MQTT broker to wipe a
 ```
 
 ## Hardware ##
-The petard heavily based on original WellToBe Pet Fountain. It has good powering circuits, fair IR mechanical design, comfy pump output.
+The petard is heavily based on the original WellToBe Pet Fountain. It has good powering circuits, fair IR mechanical design, comfy pump output.
 
 1. Make [all marked changes](pics/welltobe_pcba_changes.jpg) in original WellToBe pet fountain PCBA. This step finishes with cable or header connector out of the pet fountain controlling column.
-2. Assemble [the new controlling circuit](pics/petard_schematics.pdf). Pay attention on location of reed switches. Keep WiFi antenna far from metals/leads as possible. Burn the firmware to the ESP8266 and connect it to your WiFi.
+2. Assemble [the new controlling circuit](pics/petard_schematics.pdf). Pay attention on location of reed switches. Keep WiFi antenna unobstructed by metals/leads as possible. Burn the firmware to the ESP8266 and connect it to your WiFi.
 3. Optional step: Print [the Petard cover](pics/petard_cover.stl). PLA is good enough. Prepare plastic standoffs with inner 3mm screw for the cover. Glue the standoffs to the container with epoxy or Cyanoacrylate glue.
-4. Glue the Petard circuit assembly outside of the water tank. Adjust its place with magnet float.
-5. Inside the water tank, exactly opposite reed switches, glue the thin plastic pipe for the magnet float. Place the float into the pipe.
+4. Glue the Petard circuit assembly outside of the water tank. Adjust its place with a magnet float.
+5. Inside the water tank, exactly opposite the reed switches, glue a thin plastic pipe for the magnet float. Place the float into the pipe.
 6. Mount the cover from step 3.
 7. Pet's natural curiosity teaches it how to use the fountain. No training needed. :-)
 
