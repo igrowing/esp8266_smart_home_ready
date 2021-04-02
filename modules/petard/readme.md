@@ -14,7 +14,7 @@ Table of contents:
   - [Hardware](#hardware)
   - [Discussion](#discussion)
     - [IR proximity detector](#ir-proximity-detector)
-    - [ls and cat to SPIFFS over MQTT](#ls-and-cat-to-spiffs-over-mqtt)
+    - [rm, cat and ls to SPIFFS over MQTT](#rm-cat-and-ls-to-spiffs-over-mqtt)
     - [Open issues](#open-issues)
 
 
@@ -54,6 +54,8 @@ The list below shows problems in the original pet fountain and how it was solved
   - **Solution:** Detect the pet owner is filling the container with water and do not activate the pump.
 - **Problem:** Working long hours you cannot know what's status of the water and the pet. And if trouble happens, you cannot know when it happened and what exactly went there.
   - **Solution:** Report via MQTT the pet fountain state: water level, pump on/off, filter service time. All the data can be stored in the database (InfluxDB in my case) and reviewed/analyzed later.
+- **Problem:** If your pet is sick (or other reason) it might not drink long time. As pet owner, you'd like to know about sudden changes in the pet behavior.
+  - **Solution:** Set drinking timeout to the Petard. Alert via MQTT if the pet did not approach the fountain longer than timeout.
 
 Node-Red flow shows essential data as Web-UI and stores the data to remote InfluxDB:
 <img src="pics/petard_nr_flow.jpg" width="800" alt="Petard Node-red flow">
@@ -116,7 +118,7 @@ Petard settings and properties:
 ```
 homie/petard/pf1/$properties 
 Read-only: alert
-Settable: status,factory-reset,reset,cat,ls,remove,sensitivity,pump,read-ir,filter-service-l
+Settable: status,factory-reset,reset,cat,ls,rm,sensitivity,pump,read-ir,filter-service-l
 ```
 
 Examples of statuses and alerts:
@@ -139,6 +141,7 @@ homie/petard/pf1/sensitivity 32
 ...
 homie/petard/pf1/filter-service-l/set 250    // Customize filter service life.
 homie/petard/pf1/filter-service-l 250
+homie/petard/pf1/filter-reset/set true       // Reset the filter counter via MQTT.
 ```
 
 Weird/dangerous MQTT functions:
@@ -194,7 +197,7 @@ Number "32" is the optimal sensitivity coefficient. It's possible to change it v
 
 The ambient light intensity is tricky too. Light might change quickly and cause false triggering of the pump. To avoid this, then ambient light intensity is accumulated in modified sliding window AKA moving average. To save the memory, this is implemented with a single variable and math operations. This is not exactly moving average but good enough for our application.
 
-### ls and cat to SPIFFS over MQTT ###
+### rm, cat and ls to SPIFFS over MQTT ###
 
 ### Open issues ###
 - The cover design might be better, neater.
