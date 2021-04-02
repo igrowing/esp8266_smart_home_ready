@@ -424,6 +424,94 @@
         "wires": []
     },
     {
+        "id": "ee6e19c7.ddc4a8",
+        "type": "ui_button",
+        "z": "e57d8994.e26148",
+        "name": "",
+        "group": "8608f8cf.9dd2c8",
+        "order": 5,
+        "width": "3",
+        "height": "1",
+        "passthru": false,
+        "label": "Reset filter",
+        "tooltip": "Click to reset water filter counter",
+        "color": "",
+        "bgcolor": "",
+        "icon": "",
+        "payload": "Are you sure to reset the filter counter?",
+        "payloadType": "str",
+        "topic": "homie/petard/pf1/filter-reset/set",
+        "x": 150,
+        "y": 1000,
+        "wires": [
+            [
+                "3d007cfb.1e29b4"
+            ]
+        ]
+    },
+    {
+        "id": "6055f484.2458dc",
+        "type": "ui_button",
+        "z": "e57d8994.e26148",
+        "name": "",
+        "group": "8608f8cf.9dd2c8",
+        "order": 5,
+        "width": "3",
+        "height": "1",
+        "passthru": false,
+        "label": "Restart Petard",
+        "tooltip": "Reset Petard remotely",
+        "color": "red",
+        "bgcolor": "",
+        "icon": "",
+        "payload": "Are you sure to restart the Petard?",
+        "payloadType": "str",
+        "topic": "homie/petard/pf1/reset/set",
+        "x": 160,
+        "y": 1040,
+        "wires": [
+            [
+                "3d007cfb.1e29b4"
+            ]
+        ]
+    },
+    {
+        "id": "394d9d3.3699162",
+        "type": "function",
+        "z": "e57d8994.e26148",
+        "name": "Confirm",
+        "func": "//only accept OK msg's\nif (msg.payload == 'OK') {\n    msg.payload = \"true\";\n    return msg;\n}\nreturn null;",
+        "outputs": 1,
+        "noerr": 0,
+        "x": 520,
+        "y": 1040,
+        "wires": [
+            [
+                "7562cfca.75a58"
+            ]
+        ]
+    },
+    {
+        "id": "3d007cfb.1e29b4",
+        "type": "ui_toast",
+        "z": "e57d8994.e26148",
+        "position": "dialog",
+        "displayTime": "3",
+        "highlight": "",
+        "outputs": 1,
+        "ok": "OK",
+        "cancel": "Cancel",
+        "topic": "",
+        "name": "Confirm",
+        "x": 347,
+        "y": 1040,
+        "wires": [
+            [
+                "394d9d3.3699162"
+            ]
+        ]
+    },
+    {
         "id": "8608f8cf.9dd2c8",
         "type": "ui_group",
         "z": "",
