@@ -3,7 +3,7 @@
 #include <cppQueue.h>
 #include <EasyButton.h>
 
-#define FW_VER       "1.0.1" 
+#define FW_VER       "1.0.2" 
 // #define DEBUG
 
 #define LED_COUNT    1
@@ -43,6 +43,7 @@ Ticker filtered_timer;          // Delays filtered water write
 Ticker ir_timer;                // Runs IR distance detector
 Ticker pump_timer;
 Ticker water_report_lock_timer; // Avoid too many reports about thirsty pet when no water.
+Ticker reboot_timer;            // Use for delayed reboot
 
 /*
 IR detector returns raw value of ADC from 0 to 1023. This represents scale up to 1V, downscaled from original 2V max.
@@ -63,6 +64,9 @@ uint16_t sensitivity = 32;  // Multiplier above regular distance detection level
 
 uint16_t replace_filter_every_l = 250;   // Read/write to EEPROM
 uint32_t pump_start_ms = UCLEARED;       // Register when pump started.
+uint32_t last_pet_detected_ms = UCLEARED; // Track max timeout when pet didn't drink
+uint32_t no_drink_timeout_ms = 12 * 3600 * 1000; // 12 hours default
+bool is_no_drink_alert_ok = true;
 uint8_t prev_level_decoded = 1;  // 1..7. 255 is error
 uint32_t filtered_ml = UCLEARED;
 
@@ -405,9 +409,14 @@ void drive_ir() {
 
     ir_timer.once(9.0, drive_ir);   // Reschedule next reading later.
     pumpOn(ir_reading);
+    last_pet_detected_ms = millis();
   } else {
     ir_timer.once_ms(500, drive_ir);   // Reschedule next reading fast.
   }
+}
+
+void reboot() {
+  Homie.reboot();
 }
 
 
@@ -454,14 +463,6 @@ bool catHandler(const HomieRange& range, const String& value) {
   return true; 
 }
 
-void reportSensitivity() {
-  petard_node.setProperty("sensitivity").setRetained(true).send(String(sensitivity));
-}
-
-void reportFilteredWater() {
-  petard_node.setProperty("filter-service-l").setRetained(true).send(String(replace_filter_every_l));
-}
-
 void reportStatus() {
   /* {
       filtered_l: x,
@@ -470,11 +471,13 @@ void reportStatus() {
       water_level_t: x,
       replace_filter_every_l: x,
       ir_avg: x,
-      distanceThreshold: x,
+      distance_threshold: x,
+      drank_ago_h: x,
   }
   */
-  reportSensitivity();
-  reportFilteredWater();
+  petard_node.setProperty("sensitivity").setRetained(true).send(String(sensitivity));
+  petard_node.setProperty("filter-service-l").setRetained(true).send(String(replace_filter_every_l));
+  petard_node.setProperty("drink-timeout-h").setRetained(true).send(String(no_drink_timeout_ms / 3600 / 1000));
   petard_node.setProperty("status").setRetained(false).send(
     "{\"filtered_l\":" + String(filtered_ml / 1000) + 
     ",\"remaining_filter_service_l\":" + String(replace_filter_every_l - filtered_ml / 1000) + 
@@ -482,7 +485,8 @@ void reportStatus() {
     ",\"water_level_t\":" + String(prev_level_decoded) + 
     ",\"replace_filter_every_l\":" + String(replace_filter_every_l) + 
     ",\"ir_avg\":" + String(ir_avg) + 
-    ",\"distanceThreshold\":" + String(getDistanceThreshold()) + 
+    ",\"distance_threshold\":" + String(getDistanceThreshold()) + 
+    ",\"drank_ago_h\":" + f2str((float)(millis() - last_pet_detected_ms) / 1000.0 / 3600.0, 2) + 
     "}");
 }
 
@@ -573,6 +577,15 @@ bool sensitivityHandler(const HomieRange& range, const String& value) {
   return true;
 }
 
+// homie/petard/pf1/drink-timeout-h/set <number>
+bool drinkTimeoutHandler(const HomieRange& range, const String& value) {
+  long val = value.toInt();
+  if (val <= 0) return false; 
+  storeVariable("no_drink_timeout_ms", val * 3600 * 1000);
+  no_drink_timeout_ms = val * 3600 * 1000;
+  reportStatus();
+  return true;
+}
 
 
 /***********************************************************************
@@ -590,7 +603,13 @@ void loopHandler() {
 #endif  
   }  
 
-  // TODO: Add alert if pet don't drinks too long
+  // Alert if pet don't drinks too long
+  if ((millis() - last_pet_detected_ms > no_drink_timeout_ms) && is_no_drink_alert_ok) {
+    reboot_timer.once(1.0, reboot);
+    petard_node.setProperty("alert").setRetained(false).send("Your pet dod not drink " + 
+                                    String(no_drink_timeout_ms / 3600 / 1000) + " hours.");
+    is_no_drink_alert_ok = false;
+  }
 }
 
 void setupHandler() {
@@ -664,6 +683,7 @@ void setup() {
   petard_node.advertise("alert");
   petard_node.advertise("filter-service-l").settable(filterServiceLHandler);  // Set the filter service time.
   petard_node.advertise("filter-reset").settable(filterResetHandler); 
+  petard_node.advertise("drink-timeout-h").settable(drinkTimeoutHandler); 
   
   Homie.setSetupFunction(setupHandler).setLoopFunction(loopHandler);
   Homie.setup();
@@ -672,6 +692,7 @@ void setup() {
   sensitivity = restoreVariable("sensitivity", sensitivity);
   is_filter_new = restoreVariable("is_filter_new", is_filter_new);
   filtered_ml = restoreVariable("filtered_ml", filtered_ml);
+  no_drink_timeout_ms = restoreVariable("no_drink_timeout_ms", no_drink_timeout_ms);
   ir_timer.once(3.0, drive_ir);
 
   // digitalWrite(PIN_IR_LED, HIGH);

@@ -181,11 +181,17 @@
                 "v": "filter-service-l$",
                 "vt": "str",
                 "case": false
+            },
+            {
+                "t": "regex",
+                "v": "drink-timeout-h$",
+                "vt": "str",
+                "case": false
             }
         ],
         "checkall": "false",
         "repair": false,
-        "outputs": 7,
+        "outputs": 8,
         "x": 277.00000762939453,
         "y": 767.0000839233398,
         "wires": [
@@ -209,6 +215,9 @@
             [],
             [
                 "98d3e454.0144b8"
+            ],
+            [
+                "bab86be6.e72d88"
             ]
         ]
     },
@@ -220,8 +229,8 @@
         "func": "var obj = {};\nobj.pump=(msg.payload === \"1\")?1:0;\nmsg.payload = obj;\nmsg.topic = \"\";\nnode.status({text: JSON.stringify(obj)});\nreturn msg;\n",
         "outputs": 1,
         "noerr": 0,
-        "x": 440,
-        "y": 980,
+        "x": 500,
+        "y": 920,
         "wires": [
             [
                 "169310d8.5d812f"
@@ -360,7 +369,7 @@
         "precision": "s",
         "retentionPolicy": "",
         "x": 880,
-        "y": 980,
+        "y": 920,
         "wires": []
     },
     {
@@ -380,8 +389,8 @@
         "min": "50",
         "max": "500",
         "step": "10",
-        "x": 500,
-        "y": 920,
+        "x": 480,
+        "y": 980,
         "wires": [
             [
                 "9ed1c1c7.a709e"
@@ -402,8 +411,8 @@
         "reset": "",
         "bytopic": "all",
         "name": "delay10sec",
-        "x": 722,
-        "y": 914,
+        "x": 710,
+        "y": 1000,
         "wires": [
             [
                 "7562cfca.75a58"
@@ -419,8 +428,8 @@
         "qos": "",
         "retain": "",
         "broker": "2bd2afca.e962e",
-        "x": 920,
-        "y": 920,
+        "x": 910,
+        "y": 1040,
         "wires": []
     },
     {
@@ -441,8 +450,8 @@
         "payload": "Are you sure to reset the filter counter?",
         "payloadType": "str",
         "topic": "homie/petard/pf1/filter-reset/set",
-        "x": 150,
-        "y": 1000,
+        "x": 130,
+        "y": 1020,
         "wires": [
             [
                 "3d007cfb.1e29b4"
@@ -467,8 +476,8 @@
         "payload": "Are you sure to restart the Petard?",
         "payloadType": "str",
         "topic": "homie/petard/pf1/reset/set",
-        "x": 160,
-        "y": 1040,
+        "x": 140,
+        "y": 1080,
         "wires": [
             [
                 "3d007cfb.1e29b4"
@@ -483,8 +492,8 @@
         "func": "//only accept OK msg's\nif (msg.payload == 'OK') {\n    msg.payload = \"true\";\n    return msg;\n}\nreturn null;",
         "outputs": 1,
         "noerr": 0,
-        "x": 520,
-        "y": 1040,
+        "x": 500,
+        "y": 1080,
         "wires": [
             [
                 "7562cfca.75a58"
@@ -503,11 +512,36 @@
         "cancel": "Cancel",
         "topic": "",
         "name": "Confirm",
-        "x": 347,
-        "y": 1040,
+        "x": 327,
+        "y": 1080,
         "wires": [
             [
                 "394d9d3.3699162"
+            ]
+        ]
+    },
+    {
+        "id": "bab86be6.e72d88",
+        "type": "ui_numeric",
+        "z": "e57d8994.e26148",
+        "name": "",
+        "label": "Alert if pet does not drink for, H",
+        "tooltip": "Set timeout when owner will be notified that pet doesn't drink too long",
+        "group": "8608f8cf.9dd2c8",
+        "order": 4,
+        "width": 0,
+        "height": 0,
+        "passthru": false,
+        "topic": "homie/petard/pf1/drink-timeout-h/set",
+        "format": "{{value}}",
+        "min": "1",
+        "max": "20",
+        "step": "1",
+        "x": 450,
+        "y": 1030,
+        "wires": [
+            [
+                "9ed1c1c7.a709e"
             ]
         ]
     },
