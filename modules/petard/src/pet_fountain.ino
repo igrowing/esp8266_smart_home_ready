@@ -3,7 +3,7 @@
 #include <cppQueue.h>
 #include <EasyButton.h>
 
-#define FW_VER       "1.0.2" 
+#define FW_VER       "1.0.3" 
 // #define DEBUG
 
 #define LED_COUNT    1
@@ -39,6 +39,7 @@ CRGBArray<LED_COUNT> leds;
 
 Ticker led_timer;               // Postpone the LED off
 Ticker level_timer;             // Run water level check periodically
+Ticker status_delay_timer;      // Delay the report for fast changing events. Last event will be reported.
 Ticker filtered_timer;          // Delays filtered water write
 Ticker ir_timer;                // Runs IR distance detector
 Ticker pump_timer;
@@ -92,6 +93,13 @@ bool is_alert_allowed = true;        // Shoot only 1 alert until acknowledge by 
 uint8_t is_filter_new = 1;           // Avoid reporting "Replace filter" when filter just replaced and (total_liters % liters_to_replace) is still 0. Keep in EEPROM.
 const String repl_filt_msg = "Replace filter and long click on the button";
 bool is_no_water_report_locked = false;
+
+const String ALERT_MSGS[3] = {
+  String("Unknown reed switch reading"),
+  String("Add water now"),
+  String("Add water soon")
+};
+
 
 /***********************************************************************
  *                   UTILITY / SPECIFIC FUNCTIONS                      *
@@ -244,7 +252,7 @@ void pumpOff() {
   uint32_t last_filtered_ml = MLPS * (millis() - pump_start_ms) / 1000;
   filtered_ml += last_filtered_ml;
   filtered_timer.once(3600.0, writeFilteredML);
-  if ((replace_filter_every_l < (filtered_ml / 1000)) && (is_filter_new == 1)) {
+  if (((int)(replace_filter_every_l - filtered_ml / 1000) <= 0) && (is_filter_new == 1)) {
     is_filter_new = 0;
     storeVariable("is_filter_new", is_filter_new);
     singleAlertUntilBtnAck(repl_filt_msg);
@@ -262,6 +270,7 @@ bool resetFilter() {
     filtered_ml = 0;
     writeFilteredML();
     petard_node.setProperty("status").setRetained(false).send("Filter replacement accepted");
+    is_alert_allowed = true;
     return true;
   }
   return false;
@@ -286,6 +295,13 @@ void onPressBtn() {
   else pumpOn();
 }
 
+void singleAlertUntilLevelChange(uint8_t msg_type = 0) {
+  // Report to fill the water
+  if (is_level_changed) {
+    petard_node.setProperty("alert").setRetained(false).send(ALERT_MSGS[msg_type]);
+  }
+}
+
 ICACHE_RAM_ATTR void measureWaterLevel() {
   // Stop blinking if water level changed.
   if (level_timer.active()) level_timer.detach();
@@ -298,31 +314,31 @@ ICACHE_RAM_ATTR void measureWaterLevel() {
   it = level_map.find(level_raw);
   if (it != level_map.end()) level_decoded = it->second;
   else {
-    singleAlertUntilBtnAck("Unknown reed switch reading");
+    status_delay_timer.once_ms(15000, singleAlertUntilLevelChange, (uint8_t)0);  //String("Unknown reed switch reading"));
     level_timer.once_ms(500, blinkRedLed, true);
   }
 
   // Level changed => update global variable.
   is_level_changed = (level_decoded != prev_level_decoded);
-  if (is_level_changed) reportStatus();
+  if (is_level_changed) status_delay_timer.once(15.0, reportStatus);
 
   switch (level_decoded)
   {
   case 1:
     leds[0] = CRGB::Red;
-    singleAlertUntilLevelChange("Add water now");
+    status_delay_timer.once_ms(15000, singleAlertUntilLevelChange, (uint8_t)1);
     break;
   
   case 2:
     leds[0] = CRGB::Orange;
     // Alert only when water goes down
-    if ((level_decoded < prev_level_decoded) && (prev_level_decoded != 3)) singleAlertUntilLevelChange("Add water soon");
+    if ((level_decoded < prev_level_decoded) && (prev_level_decoded != 3)) status_delay_timer.once_ms(15000, singleAlertUntilLevelChange, (uint8_t)2);
     break;
 
   case 3:
     leds[0] = CRGB::Yellow;
     // Alert only when water goes down
-    if (level_decoded < prev_level_decoded) singleAlertUntilLevelChange("Add water soon");
+    if (level_decoded < prev_level_decoded) status_delay_timer.once_ms(15000, singleAlertUntilLevelChange, (uint8_t)2);
     break;
   
   case 4:
@@ -480,7 +496,7 @@ void reportStatus() {
   petard_node.setProperty("drink-timeout-h").setRetained(true).send(String(no_drink_timeout_ms / 3600 / 1000));
   petard_node.setProperty("status").setRetained(false).send(
     "{\"filtered_l\":" + String(filtered_ml / 1000) + 
-    ",\"remaining_filter_service_l\":" + String(replace_filter_every_l - filtered_ml / 1000) + 
+    ",\"remaining_filter_service_l\":" + String((int)(replace_filter_every_l - filtered_ml / 1000)) + 
     ",\"water_level_l\":" + f2str((float)(prev_level_decoded) * MARK_L_COEFF / 1000.0, 1) + 
     ",\"water_level_t\":" + String(prev_level_decoded) + 
     ",\"replace_filter_every_l\":" + String(replace_filter_every_l) + 
@@ -518,13 +534,6 @@ void singleAlertUntilBtnAck(String msg) {
   // Report how many liters are remaining to replace the filter
   if (is_alert_allowed) {
     if (petard_node.setProperty("alert").setRetained(false).send(msg) != 0) is_alert_allowed = false;
-  }
-}
-
-void singleAlertUntilLevelChange(String msg) {
-  // Report to fill the water
-  if (is_level_changed) {
-    petard_node.setProperty("alert").setRetained(false).send(msg);
   }
 }
 
@@ -616,7 +625,7 @@ void setupHandler() {
   measureWaterLevel();  // Update the LED status
   reportStatus();
   // Remind to replace filter if needed after reboot.
-  if (replace_filter_every_l < (filtered_ml / 1000)) {
+  if ((int)(replace_filter_every_l - filtered_ml / 1000) <= 0) {
     singleAlertUntilBtnAck(repl_filt_msg);
   }
 }
