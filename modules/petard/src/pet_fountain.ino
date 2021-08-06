@@ -3,7 +3,7 @@
 #include <cppQueue.h>
 #include <EasyButton.h>
 
-#define FW_VER       "1.0.3" 
+#define FW_VER       "1.0.4" 
 // #define DEBUG
 
 #define LED_COUNT    1
@@ -420,15 +420,16 @@ void drive_ir() {
       if (!water_report_lock_timer.active()) {
         water_report_lock_timer.once(20.0, reportPetThirsty);
       }
+      ir_timer.once(600.0, drive_ir);   // Reschedule next reading later.
       return;
     }
 
     ir_timer.once(9.0, drive_ir);   // Reschedule next reading later.
     pumpOn(ir_reading);
     last_pet_detected_ms = millis();
-  } else {
-    ir_timer.once_ms(500, drive_ir);   // Reschedule next reading fast.
+    return;
   }
+  ir_timer.once_ms(500, drive_ir);   // Reschedule next reading fast.
 }
 
 void reboot() {
@@ -615,7 +616,7 @@ void loopHandler() {
   // Alert if pet don't drinks too long
   if ((millis() - last_pet_detected_ms > no_drink_timeout_ms) && is_no_drink_alert_ok) {
     reboot_timer.once(1.0, reboot);
-    petard_node.setProperty("alert").setRetained(false).send("Your pet dod not drink " + 
+    petard_node.setProperty("alert").setRetained(false).send("Your pet did not drink " + 
                                     String(no_drink_timeout_ms / 3600 / 1000) + " hours.");
     is_no_drink_alert_ok = false;
   }
