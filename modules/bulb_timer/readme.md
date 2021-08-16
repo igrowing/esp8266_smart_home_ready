@@ -1,4 +1,4 @@
-Alternative for Light (Bulb Timer for Gewiss Systems)[https://www.gewiss.com/ww/en/products/experience-catalogue/catalogs/series/product/domotics/chorus---domestic-range-white-modular-devices/GW10583].
+Alternative for Light [Bulb Timer for Gewiss Systems](https://www.gewiss.com/ww/en/products/experience-catalogue/catalogs/series/product/domotics/chorus---domestic-range-white-modular-devices/GW10583).
 
 ## Why?
 
