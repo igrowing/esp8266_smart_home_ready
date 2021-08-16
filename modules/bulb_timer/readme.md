@@ -1,8 +1,11 @@
+# WARNING!  WARNING!  WARNING!
+**DO NOT BUILD this project without having proper qualification to work with High Voltage AC mains. The responsibility of death or health degradation and/or property damage is on the builder!**
+
 Alternative for Light [Bulb Timer for Gewiss Systems](https://www.gewiss.com/ww/en/products/experience-catalogue/catalogs/series/product/domotics/chorus---domestic-range-white-modular-devices/GW10583).
 
 ## Why?
 
-1. It's confusing to pay $200 for a bulb switch.
+1. It's confusing to pay ~$200 for a bulb switch.
 2. It's fun to develop something simple from scratch.
 
 ## What?
