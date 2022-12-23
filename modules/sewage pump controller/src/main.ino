@@ -6,17 +6,18 @@
 #include <Homie.h>
 
 //   -- Constants --
-const int PIN_BUTTON  = 0;  // and LED. Do not light the LED for longer than 8 sec. Write LOW for 10sec or longer for factory reset
-const int PIN_RELAY   = 12;
-const int PIN_TRIGGER = 14;
-const int PIN_ECHO    = 13;
+const int PIN_BUTTON      = 0;  // and LED. Do not light the LED for longer than 8 sec. Write LOW for 10sec or longer for factory reset
+const int PIN_RELAY       = 12;
+const int PIN_SONAR_POWER = 14;
+const int PIN_SONAR_TOF   = 13;
 
 #define RESET_DIST      0
 #define RESET_ADC       0
 #define RESET_ADC_MIN   1024
 #define RESET_ADC_MAX   0
+#define SAMPLES_INSTALL 10
+#define SAMPLES_NORMAL  1000
 #define SAMPLES_ADC     250
-#define SAMPLES_DIST    10
 #define RMS_ON_TRSH     800    // mA.
 #define PUMP_ON_TIMEOUT 300.0  // 5 min = 5 * 60sec
 #define PUMP_COOLTIME   600.0  // 10 min = 10 * 60sec
@@ -30,19 +31,32 @@ volatile short min_adc                  = RESET_ADC_MIN;
 volatile short max_adc                  = RESET_ADC_MAX;
 volatile uint8_t adc_cnt                = RESET_ADC;
 volatile uint_fast32_t dist_agg         = RESET_DIST;
-volatile uint8_t dist_cnt               = RESET_DIST;
+volatile uint32_t dist_cnt              = RESET_DIST;
 volatile bool pump_off_reported         = false;
 volatile bool pump_on_reported          = false;
 volatile bool distance_alert_reported   = false;
+volatile uint32_t samples_dist          = SAMPLES_NORMAL;
 
 Ticker adcTimer;
 Ticker pumpAlertTimer;
 Ticker distanceAlertTimer;
-Ticker distanceTimer;
+Ticker sonarPowerTimer;
 Ticker relayTimer;
 Ticker reportTimer;
 
-HomieNode pumpControlNode("pump", "controller");
+/* Switching from Homie 2.0.0 to Homie 3.0.1:
+In HomieNode constructor add node ID as 1st argument. This implies the MQTT topic:
+  Device ID from config.json (Homie 2.0.0 & 3.0.1) 
+                    |
+                    v
+MQTT topic: homie/pump/pump/relay/
+                        ^
+                        |
+  Device ID from name arg in constructor of Homie2.0.0
+        and from id arg in constructor of Homie3.0.1
+*/
+// HomieNode pumpControlNode("pump", "pump", "controller");  // Homie 3.0.1
+HomieNode pumpControlNode("pump", "controller");    // Homie 2.0.0
 
 /******************************************************************************************
  *     HELPERS
@@ -111,13 +125,15 @@ void runAdc() {
 }
 
 void read_distance() {
-  digitalWrite(PIN_TRIGGER, HIGH);
-  delayMicroseconds(15);
-  digitalWrite(PIN_TRIGGER, LOW);
-
-  long duration = pulseIn(PIN_ECHO, HIGH, 10000);
-  float distance = duration / 58.2;   // calibrate here
-  dist_agg += (uint32_t)distance;
+  ulong t = millis();
+  while ((digitalRead(PIN_SONAR_TOF) == LOW) && ((millis() - t) <= 99)) delay(0.1);
+  ulong u = micros();
+  while ((digitalRead(PIN_SONAR_TOF) == HIGH) && ((micros() - u) <= 99500)) delay(0.1);
+  if ((millis() - t) < 101000) {
+    long duration = micros() - u;
+    float distance = duration / 58.2;   // calibrate here
+    dist_agg += (uint32_t)distance;
+  }
   dist_cnt++;
 }
 
@@ -160,12 +176,11 @@ bool relayHandler(const HomieRange& range, const String& value) {
 bool installModeHandler(const HomieRange& range, const String& value) {
   if (value != "true" && value != "false") return false;
 
-  distanceTimer.detach();
   if (value == "true") {
-    distanceTimer.attach(1.0, read_distance);
+    samples_dist = SAMPLES_INSTALL;
   } else {
-    distanceTimer.attach(60.0, read_distance);
-  };
+    samples_dist = SAMPLES_NORMAL;
+  }
   return true;
 }
 
@@ -180,6 +195,22 @@ bool distanceHandler(const HomieRange& range, const String& value) {
   dist_trsh = val;
   storeVariable("dist_trsh", dist_trsh); 
   pumpControlNode.setProperty("distance-threshold").setRetained(false).send(String(dist_trsh));  // ack back
+  return true;
+}
+
+void sonarPower(int on) {
+    digitalWrite(PIN_SONAR_POWER, on);
+}
+
+// homie/pump/pump/reboot-sonar/set true
+bool sonarHandler(const HomieRange& range, const String& value) {
+  if (value != "true" && value != "false") return false;
+
+  if (value == "true") {
+    sonarPower(LOW);
+    sonarPowerTimer.once(1.0, sonarPower, HIGH);
+    pumpControlNode.setProperty("reboot-sonar").setRetained(false).send("Sonar rebooted");  // ack back
+  }
   return true;
 }
 
@@ -217,7 +248,6 @@ void setupHandler() {
   dist_trsh = (restoreVariable("dist_trsh") == ERR_NUM)?dist_trsh:restoreVariable("dist_trsh");
   pumpControlNode.setProperty("distance-threshold").setRetained(false).send(String(dist_trsh));  // Inform UI about initial threshold.
 
-  distanceTimer.attach(60.0, read_distance);      // Start reading distance.
   adcTimer.once(30.0, runAdc);                    // Let some time to calm down after boot.
   pumpAlertTimer.once(20.0, reportRelayStatus);   // Inform UI about initial relay status.
   reportTimer.attach(59.0, distanceTrshReport);
@@ -260,7 +290,8 @@ void loopHandler() {
     }
   }
 
-  if (dist_cnt > SAMPLES_DIST) {
+  read_distance();
+  if (dist_cnt > samples_dist) {
     uint32_t distance = (uint32_t)(dist_agg / dist_cnt);  // TODO: Calibrate here.
     // Reset counters after reading, start from beginning.
     dist_agg = RESET_DIST;
@@ -279,12 +310,18 @@ void loopHandler() {
 void setup() {
   Serial.begin(115200);
   Serial << endl << endl;
+  if (!SPIFFS.begin()) {
+    Serial << ">> Formatting the SPIFFS..." << endl;
+    SPIFFS.format();
+    Serial << "... with result: " << String(SPIFFS.begin()) << endl;
+  }
   pinMode(PIN_RELAY, OUTPUT);
-  pinMode(PIN_TRIGGER, OUTPUT);
-  pinMode(PIN_ECHO, INPUT);
+  pinMode(PIN_SONAR_POWER, OUTPUT);
+  pinMode(PIN_SONAR_TOF, INPUT);
   digitalWrite(PIN_RELAY, HIGH);
+  sonarPower(HIGH);
 
-  Homie_setFirmware("pump-control", "1.0.5");
+  Homie_setFirmware("pump-control", "1.1.2");
 
   Homie.setSetupFunction(setupHandler).setLoopFunction(loopHandler);
   // Homie.setResetTrigger(PIN_BUTTON, LOW, 5000);
@@ -294,6 +331,7 @@ void setup() {
   pumpControlNode.advertise("relay").settable(relayHandler);  // Report relay is on and off
   pumpControlNode.advertise("install-mode").settable(installModeHandler);  // Report distance faster
   pumpControlNode.advertise("distance-threshold").settable(distanceHandler);  // Set threshold for 'close water' alert
+  pumpControlNode.advertise("reboot-sonar").settable(sonarHandler);  // Reboot sonar with 'true' message
   pumpControlNode.advertise("distance");  // Report distance to water
 
   Homie.setup();
