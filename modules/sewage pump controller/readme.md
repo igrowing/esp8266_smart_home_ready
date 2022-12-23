@@ -24,10 +24,17 @@ Couple of times my basement had suffered from ... well... sewage overflow due to
 
 ![Node-RED flow](nr_flow.jpg "Node-RED flow for Sewage Pump Controller")
 
-## Crucial mechanical design change
-IMPORTANT! Originally, the distance meter module JSN-SR04T v.2.0 is planned to be mounted on the main PCB. It found to be sensitive, possible influenced from switching PSU. At the original placement the JSN-SR04T always returned minimal and not usable values. I tried to resolve the problem electronically by adding filters. Dozen variants tried. Only phisical distance from the mainboard solved the problem.
+## Crucial design change
+The JSN-SR04T sonar raised several troubles in the design:
+1. It could not be too close to the switching power supply. It is very sensitive to EMI. Very serious EMI protection and isolation needed for it.
+2. Its blue PCBA is not waterproof. The waterproof coating of the PCBA causes work stability problems. IP55 enclosure is not good enough for its protection from humidity. As result every 2-3 years the module needs to be replaced.
+3. The transducer is waterproof. However, in 2-3 years the humidity of sewage pit destroys it.
 
-So, thinking out of the box _literally_, I placed the JSN-SR04T in separated waterproof box in the sewage pit. It's about 3m cable between the JSN-SR04T and the mainboard. Use reasonably shielded cable with 4 wires and ground the shield well.
+As result, the current design uses [Maxbotix MB-7062 sonar](https://www.maxbotix.com/ultrasonic_sensors/mb7062.htm). It is 10 times more expensive than JSN-SR04T. Hoping it withstand better with humidity. It is easier to operate. It has larger range of distance detection. It has several types of outputs for choice and convenience.
+
+> Obsolete! Originally, the distance meter module JSN-SR04T v.2.0 is planned to be mounted on the main PCB. It found to be sensitive, possible influenced from switching PSU. At the original placement the JSN-SR04T always returned minimal and not usable values. I tried to resolve the problem electronically by adding filters. Dozen variants tried. Only phisical distance from the mainboard solved the problem.
+> 
+> So, thinking out of the box _literally_, I placed the JSN-SR04T in separated waterproof box in the sewage pit. It's about 3m cable between the JSN-SR04T and the mainboard. Use reasonably shielded cable with 4 wires and ground the shield well.
 
 ## Initialization
 Once the firmware is uploaded and the module is powered on, the Homie-xxxxxx AP will appear. It might take a minute or two if you use brand new ESP8266 with unwritten Flash. Homie will format the SPIFFS first.
