@@ -94,6 +94,11 @@ You can set a minimal distance of water level (limit) to trigger the alert:
 mosquitto_pub -t homie/pump/pump/distance-threshold/set -m '60'
 ```
 
+Reboot the pump controller:
+```
+mosquitto_pub -t homie/pump/pump/reset/set -m 'true'
+```
+
 You can enable install mode. It allows you to see the distance to water quickly in MQTT broker while installing the controller:
 ```
 mosquitto_pub -t homie/pump/pump/install-mode/set -m 'true'
