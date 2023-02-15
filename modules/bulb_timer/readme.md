@@ -12,3 +12,4 @@ Alternative for Light [Bulb Timer for Gewiss Systems](https://www.gewiss.com/ww/
 
 - When it's dark, the press on button lits the bulb for 2 minutes. When there is an ambient light, no electricity spent on lighting.
 - No other smart features, no networking, no reporting, no movement sensing... Stupid cheap simple module.
+- The "LED" marked component is a photodiode, transparent, 5mm.
