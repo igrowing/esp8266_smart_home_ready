@@ -1,4 +1,4 @@
-#Bathroom light
+# Bathroom light switch
 
 ## Why?
 - Why turn lights on and off manually? Why care of light at all? It must be automatic.
