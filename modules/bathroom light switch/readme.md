@@ -16,7 +16,7 @@ What could be done:
 The solution consists of:
 - Sonoff Dual R2 (any Sonoff Dual is OK with slight changes).
 - AM312 PIR sensor.
-- Some simple electronic parts, [see schematics](http://).
+- Some simple electronic parts, [see schematics](https://github.com/igrowing/esp8266_smart_home_ready/blob/master/modules/bathroom%20light%20switch/hardware/bathroom_light.pdf).
 - Your preferred ambient lighting foŕthe bathroom.
 - AC/DC LED driver 12V 1W.
 - Short strip of LEDs at your preferred color. I like blue color to keep myself asleep during the moonwalk to the bathroom.
