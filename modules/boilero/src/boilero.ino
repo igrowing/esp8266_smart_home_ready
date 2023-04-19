@@ -6,7 +6,7 @@
 // has bug fixes, don't use stock lib:
 #include "../lib/Adafruit_BMP085/src/Adafruit_BMP085.h"
 
-#define FW_VER       "1.0.I" 
+#define FW_VER       "1.0.G" 
 // #define DEBUG
 
 #define PIN_BTN_CTR  0
@@ -384,9 +384,9 @@ void display_status() {
     display.println(WiFi.localIP().toString() + " v" + FW_VER); 
   } else {
     String s1 = "NEXT ON:";
-    String s2 = mins2str(start_time_h * 60 + start_time_m);
     display.setCursor(0,32);
     display.println(s1.c_str());
+    String s2 = (suspend)?"SUSPENDED":mins2str(start_time_h * 60 + start_time_m);
     display.setCursor(0,50);
     display.println(s2.c_str());
     display.setFont();
@@ -715,7 +715,7 @@ bool timeHandler(const HomieRange& range, const String& value) {
   epoch_time = val;
   epoch_recv_ts = millis();
   reportTimeToRun();
-  time_timer.once(7.0*24*3600, request_epoch);
+  time_timer.once(3600, request_epoch);
   reportEssentials();
   return true;
 }
@@ -805,6 +805,13 @@ bool timeIncrementMHandler(const HomieRange& range, const String& value) {
   return true;
 }
 
+// homie/boiler/boiler/status/set true - report status.
+bool statusHandler(const HomieRange& range, const String& value) {
+  if (value != "true") return false;
+
+  reportEssentials();
+  return true; 
+}
 
 void reportWeather() {
   powerNode.setProperty("weather").setRetained(false).send("{\"temperature\":" + String(last_temp) + 
@@ -916,7 +923,7 @@ void setup() {
 
   // Prohibit the parameters to be set from MQTT broker
   powerNode.advertise("current");
-  powerNode.advertise("status");
+  powerNode.advertise("status").settable(statusHandler);;
   powerNode.advertise("factory-reset").settable(factoryResetHandler);
   powerNode.advertise("reset").settable(resetHandler);
   powerNode.advertise("on").settable(relayOnHandler);
