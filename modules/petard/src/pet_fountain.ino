@@ -68,7 +68,7 @@ uint32_t pump_start_ms = UCLEARED;       // Register when pump started.
 uint32_t last_pet_detected_ms = UCLEARED; // Track max timeout when pet didn't drink
 uint32_t no_drink_timeout_ms = 12 * 3600 * 1000; // 12 hours default
 bool is_no_drink_alert_ok = true;
-uint8_t prev_level_decoded = 1;  // 1..7. 255 is error
+uint8_t prev_level_decoded = 8;  // 1..7. 255 is error
 uint32_t filtered_ml = UCLEARED;
 
 uint_fast8_t brightness = 20;       // 0..255  ?
@@ -200,7 +200,7 @@ wait with millis() works bad:
 1. It's not precise as micros();
 2. It's too easy to hang the MCU with long delay.*/
 void softDelay(int us) {
-  ulong end = micros() + us;
+  uint64_t end = micros() + us;
   while(micros() < end) ;
 } 
 
@@ -226,7 +226,7 @@ void blinkRedLed(bool on = true) {
 
 uint16_t readAdc(int times) {
   // read ADC conversions ar max possible rate and return average.
-  ulong sum = 0UL;
+  uint64_t sum = 0UL;
   for (int i = 0; i< times; i++) {
     sum += analogRead(A0);
     softDelay(10);  // 5us is max possible rate, taking 10 us for safety.
@@ -568,6 +568,7 @@ bool irHandler(const HomieRange& range, const String& value) {
 bool removeHandler(const HomieRange& range, const String& value) {
   String res = (SPIFFS.remove(value))?"":" not";
   petard_node.setProperty("rm").setRetained(false).send("File " + value + " was" + res + " removed");
+  return (res == "");
 }
 
 // // homie/petard/pf1/debug/set true/false/toggle
